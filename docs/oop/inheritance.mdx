@@ -4,36 +4,50 @@ sidebar_position: 3
 
 # Inheritance
 
-Ruby supports single inheritance. A class can inherit from one parent class.
+Ruby supports **single inheritance** — a class can inherit from only one parent
+class. The symbol `<` denotes inheritance.
 
 ## Basic Inheritance
+
+The child class gets all the methods of the parent class and can override them.
 
 ```ruby
 class Animal
   def speak
     "Some sound"
   end
+
+  def eat
+    "Eating..."
+  end
 end
 
 class Dog < Animal
-  def speak
+  def speak    # override
     "Woof!"
   end
 end
 
 class Cat < Animal
-  def speak
+  def speak    # override
     "Meow!"
   end
 end
 
 Dog.new.speak  # => "Woof!"
 Cat.new.speak  # => "Meow!"
+Cat.new.eat    # => "Eating..."  (inherited from Animal)
 ```
 
-## Super
+## The `super` Keyword
 
-Use `super` to call the parent class's method.
+`super` calls the parent class's **same-named method**. It has three behaviors:
+
+| `super` call | What it does |
+|-------------|--------------|
+| `super` | Calls parent method with **all** original arguments |
+| `super()` | Calls parent method with **no** arguments |
+| `super(a, b)` | Calls parent method with **specific** arguments |
 
 ```ruby
 class Animal
@@ -44,27 +58,136 @@ end
 
 class Dog < Animal
   def initialize(name, breed)
-    super(name)  # calls Animal's initialize
+    super(name)  # passes name to Animal's initialize
     @breed = breed
   end
 end
+
+Dog.new("Fido", "Golden Retriever")
 ```
+
+Another example with method override:
+
+```ruby
+class Animal
+  def move
+    "Moves somehow"
+  end
+end
+
+class Bird < Animal
+  def move
+    super + " by flying"   # calls Animal#move and adds to it
+  end
+end
+
+class Fish < Animal
+  def move
+    super + " by swimming"
+  end
+end
+
+Bird.new.move  # => "Moves somehow by flying"
+Fish.new.move  # => "Moves somehow by swimming"
+```
+
+## Overriding Methods
+
+Child classes can completely replace parent methods or extend them with `super`.
+
+```ruby
+class Vehicle
+  def start
+    "Engine starting..."
+  end
+end
+
+class Car < Vehicle
+  def start
+    "Insert key. " + super + " Vroom!"
+  end
+end
+
+Car.new.start  # => "Insert key. Engine starting... Vroom!"
+```
+
+## Type Checking: `is_a?` vs `instance_of?`
+
+```ruby
+class Animal; end
+class Dog < Animal; end
+
+fido = Dog.new
+
+fido.is_a?(Dog)      # => true
+fido.is_a?(Animal)   # => true (because Dog inherits from Animal)
+fido.is_a?(Object)   # => true (everything inherits from Object)
+
+fido.instance_of?(Dog)     # => true
+fido.instance_of?(Animal)  # => false (exact class, no inheritance)
+```
+
+- `is_a?` checks the entire inheritance chain
+- `instance_of?` checks the exact class only
 
 ## Method Lookup Path
 
-When you call a method, Ruby follows the method lookup path:
+When Ruby looks for a method, it follows this order:
 
-1. The object's class
-2. Included modules (last included is searched first)
-3. The parent class
-4. Parent class's included modules
-5. Continue up the hierarchy
+1. The object's own class
+2. Prepended modules (last prepended searched first)
+3. Included modules (last included searched first)
+4. Parent class
+5. Parent's prepended/included modules
+6. Repeat up the chain to `BasicObject`
 
 ```ruby
+class Animal; end
+module Swimmable; end
+module Climbable; end
+
 class Dog < Animal
-  include Greetable
   include Swimmable
+  include Climbable
 end
 
-Dog.ancestors  # => [Dog, Swimmable, Greetable, Animal, Object, Kernel, BasicObject]
+Dog.ancestors
+# => [Dog, Climbable, Swimmable, Animal, Object, Kernel, BasicObject]
+```
+
+Use `Dog.ancestors` to see the full lookup chain at any time.
+
+## Inheritance vs Modules (When to Use What)
+
+| Use Inheritance (`<`) | Use Modules (`include`) |
+|----------------------|------------------------|
+| "Is-a" relationship (Dog is an Animal) | "Has-a" or "Can" relationship (Dog can swim) |
+| Shared base behavior | Shared behavior across unrelated classes |
+| One parent only | As many modules as you want |
+
+```ruby
+# Inheritance: Dog IS-AN Animal
+class Dog < Animal
+end
+
+# Modules: Dog CAN swim, CAN fetch
+module Swimmable; end
+module Fetchable; end
+
+class Dog < Animal
+  include Swimmable
+  include Fetchable
+end
+```
+
+## `respond_to?` — Checking Before Calling
+
+Always safe to check if an object can respond to a method:
+
+```ruby
+obj = "hello"
+obj.respond_to?(:upcase)   # => true
+obj.respond_to?(:fly)      # => false
+
+obj.send(:upcase)          # => "HELLO" (calls method dynamically)
 ```

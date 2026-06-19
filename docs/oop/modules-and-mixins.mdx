@@ -4,68 +4,220 @@ sidebar_position: 2
 
 # Modules and Mixins
 
-Modules are collections of methods and constants. They cannot be instantiated
-but can be mixed into classes.
+Ruby does **not** support multiple inheritance (one class cannot inherit from
+two parents). Instead, Ruby uses **modules** as mixins — a way to share
+behavior across unrelated classes.
 
-## Defining a Module
+## What is a Module?
+
+A module is a collection of methods and constants. Unlike classes, modules
+**cannot be instantiated** (you can't call `.new` on them).
 
 ```ruby
-module Greetable
-  def greet
-    "Hello!"
+module Swimmable
+  def swim
+    "#{self} is swimming!"
   end
 end
 ```
 
-## Including Modules (Mixins)
+## `include` (Adds as Instance Methods)
+
+When you `include` a module inside a class, its methods become **instance
+methods** on the class.
 
 ```ruby
-class Person
-  include Greetable  # adds as instance methods
+module Swimmable
+  def swim
+    "Swimming!"
+  end
 end
 
-Person.new.greet  # => "Hello!"
+class Fish
+  include Swimmable
+end
+
+class Duck
+  include Swimmable
+end
+
+Fish.new.swim  # => "Swimming!"
+Duck.new.swim  # => "Swimming!"
 ```
 
-## Extending Modules
+## `extend` (Adds as Class Methods)
+
+Use `extend` to add module methods as **class methods**.
 
 ```ruby
-class Person
-  extend Greetable  # adds as class methods
+module Findable
+  def find(id)
+    "Found record with id #{id}"
+  end
 end
 
-Person.greet  # => "Hello!"
+class User
+  extend Findable
+end
+
+User.find(1)  # => "Found record with id 1"
+```
+
+## `include` vs `extend` vs `prepend`
+
+| Method | Where methods go | Use case |
+|--------|-----------------|----------|
+| `include` | Instance methods (after the class in lookup) | Most common mixin pattern |
+| `prepend` | Instance methods (before the class in lookup) | Override class methods from a module |
+| `extend` | Class methods | Adding utility methods to the class itself |
+
+```ruby
+module Loggable
+  def save
+    puts "LOG: saving..."
+    super  # calls the original save
+  end
+end
+
+class Document
+  prepend Loggable  # Loggable#save runs first, then Document#save
+
+  def save
+    puts "Document saved"
+  end
+end
+
+Document.new.save
+# => "LOG: saving..."
+# => "Document saved"
 ```
 
 ## Namespacing
 
+Modules prevent naming collisions by acting as containers:
+
 ```ruby
 module Admin
   class User
-    # Admin::User - avoids collision with a top-level User class
+    # This is Admin::User — completely separate from a top-level User class
   end
 end
+
+module Api
+  class User
+    # This is Api::User
+  end
+end
+
+admin_user = Admin::User.new
+api_user = Api::User.new
 ```
 
-## Enumerable Module
+Access constants inside a module with the `::` operator.
 
-The `Enumerable` module is one of the most powerful mixins in Ruby. Include it
-and define `#each` to get `#map`, `#select`, `#reduce`, and many more.
+## The `Comparable` Module
+
+Include `Comparable` and define `<=>` (the spaceship operator) to get `<`,
+`<=`, `==`, `>=`, `>`, and `between?` for free:
 
 ```ruby
-class ShoppingCart
+class Temperature
+  include Comparable
+
+  attr_reader :celsius
+
+  def initialize(celsius)
+    @celsius = celsius
+  end
+
+  def <=>(other)
+    celsius <=> other.celsius
+  end
+end
+
+t1 = Temperature.new(20)
+t2 = Temperature.new(30)
+
+t1 < t2   # => true
+t1 == t2  # => false
+t1.between?(Temperature.new(10), Temperature.new(25))  # => true
+```
+
+## The `Enumerable` Module
+
+Include `Enumerable` and define `#each` to get `#map`, `#select`, `#reduce`,
+`#any?`, `#all?`, and many more for free:
+
+```ruby
+class Playlist
   include Enumerable
 
   def initialize
-    @items = []
+    @songs = []
   end
 
   def each(&block)
-    @items.each(&block)
+    @songs.each(&block)
   end
 
-  def add(item)
-    @items << item
+  def add(song)
+    @songs << song
   end
 end
+
+playlist = Playlist.new
+playlist.add("Song A")
+playlist.add("Song B")
+playlist.add("Song C")
+
+playlist.map { |s| s.upcase }   # => ["SONG A", "SONG B", "SONG C"]
+playlist.any? { |s| s == "Song A" }  # => true
 ```
+
+## Module Methods (for utility modules)
+
+You can define methods directly on a module (like class methods):
+
+```ruby
+module MathHelper
+  def self.square(n)
+    n * n
+  end
+
+  def self.cube(n)
+    n * n * n
+  end
+end
+
+MathHelper.square(4)  # => 16
+MathHelper.cube(3)    # => 27
+```
+
+## The Method Lookup Chain
+
+When you call a method, Ruby searches in this order:
+
+1. Methods defined in the object's class
+2. Methods from **prepended** modules (in reverse order of prepend)
+3. Methods from **included** modules (in reverse order of include)
+4. The parent class, then its prepended/included modules
+5. Continue up the hierarchy to `Object`, `Kernel`, `BasicObject`
+
+```ruby
+module A; end
+module B; end
+
+class Parent
+  include A
+end
+
+class Child < Parent
+  prepend B
+  include A
+end
+
+Child.ancestors
+# => [Child, B, A, Parent, A, Object, Kernel, BasicObject]
+```
+
+Use `.ancestors` on any class to see its full lookup chain.

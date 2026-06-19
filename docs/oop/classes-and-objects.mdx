@@ -4,34 +4,95 @@ sidebar_position: 1
 
 # Classes and Objects
 
-Ruby is a pure object-oriented language. Everything is an object, and objects are
-instances of classes.
+Ruby is a **pure object-oriented language**. Everything you interact with is an
+object—numbers, strings, arrays, even classes themselves. Objects are instances
+of classes.
 
 ## Defining a Class
 
-```ruby
-class Person
-  def initialize(name, age)
-    @name = name
-    @age = age
-  end
+Use the `class` keyword followed by the name in `PascalCase`.
 
-  def introduce
-    "Hi, I'm #{@name} and I'm #{@age} years old."
+```ruby
+class Dog
+end
+
+fido = Dog.new    # Creating an instance
+```
+
+## The `initialize` Method (Constructor)
+
+The `initialize` method is Ruby's **constructor**. It runs automatically every
+time you call `.new`. If you're coming from another language:
+
+| Language | Constructor |
+|----------|-------------|
+| Ruby | `def initialize` |
+| JavaScript | `constructor()` |
+| Python | `def __init__` |
+| Java/C# | `ClassName()` |
+
+```ruby
+class Dog
+  def initialize(name, breed)
+    @name = name    # @name is an instance variable
+    @breed = breed
+    puts "#{@name} was just born!"
   end
 end
 
-alice = Person.new("Alice", 30)
-puts alice.introduce
+fido = Dog.new("Fido", "Golden Retriever")
+# => "Fido was just born!"
 ```
 
-## Accessors
+## Instance Variables (`@`)
+
+Instance variables begin with `@` and belong to a specific object. Each instance
+has its own copy.
+
+```ruby
+class Dog
+  def initialize(name)
+    @name = name
+  end
+
+  def speak
+    "#{@name} says Woof!"
+  end
+end
+
+fido = Dog.new("Fido")
+bella = Dog.new("Bella")
+
+fido.speak  # => "Fido says Woof!"
+bella.speak # => "Bella says Woof!"
+```
+
+## Accessors (Getters and Setters)
+
+Ruby provides shortcuts for creating getter and setter methods instead of
+writing them manually:
 
 ```ruby
 class Person
-  attr_reader :name    # read-only
-  attr_writer :age     # write-only
-  attr_accessor :email # read-write
+  # Manual getter
+  def name
+    @name
+  end
+
+  # Manual setter
+  def name=(value)
+    @name = value
+  end
+end
+```
+
+Use these shortcuts instead:
+
+```ruby
+class Person
+  attr_reader :name     # generates getter (read-only)
+  attr_writer :age      # generates setter (write-only)
+  attr_accessor :email  # generates both getter and setter (read-write)
 
   def initialize(name, age, email)
     @name = name
@@ -39,32 +100,139 @@ class Person
     @email = email
   end
 end
+
+person = Person.new("Alice", 30, "alice@example.com")
+person.name            # => "Alice"  (reader)
+person.email = "new@example.com"  # (writer from attr_accessor)
+person.age = 31        # (writer from attr_writer)
 ```
 
-## Class Methods
+## Instance Methods vs Class Methods
 
 ```ruby
-class Person
+class Dog
+  # Instance method — called on an instance
+  def bark
+    "Woof!"
+  end
+
+  # Class method — called on the class itself
   def self.species
-    "Homo sapiens"
+    "Canis familiaris"
   end
 end
 
-Person.species  # => "Homo sapiens"
+fido = Dog.new
+fido.bark          # => "Woof!"
+Dog.species        # => "Canis familiaris"
 ```
 
-## Instance vs Class Variables
+## Class Variables (`@@`)
+
+Class variables are prefixed with `@@` and are **shared across all instances**
+of the class and its subclasses.
 
 ```ruby
-class Person
-  @@count = 0  # class variable, shared across all instances
+class Dog
+  @@count = 0
 
   def initialize
     @@count += 1
   end
 
-  def self.count
+  def self.total
     @@count
   end
 end
+
+Dog.new
+Dog.new
+Dog.new
+Dog.total  # => 3
+```
+
+## The `self` Keyword
+
+Inside a class, `self` refers to different things depending on context:
+
+```ruby
+class Dog
+  # Inside a method body → the instance (fido, bella, etc.)
+  def bark
+    self  # => the Dog instance
+  end
+
+  # Inside the class definition but outside any method → the class itself
+  def self.species
+    self  # => Dog (the class)
+  end
+end
+```
+
+## Converting to String (`to_s`)
+
+Ruby calls `to_s` automatically when an object needs to be displayed as text:
+
+```ruby
+class Dog
+  def initialize(name)
+    @name = name
+  end
+
+  def to_s
+    "Dog: #{@name}"
+  end
+end
+
+fido = Dog.new("Fido")
+puts fido  # => "Dog: Fido"  (calls to_s automatically)
+```
+
+## Comparing Objects
+
+```ruby
+class Dog
+  attr_reader :name
+
+  def initialize(name)
+    @name = name
+  end
+
+  def ==(other)
+    name == other.name
+  end
+end
+
+Dog.new("Fido") == Dog.new("Fido")  # => true (our custom ==)
+Dog.new("Fido").equal?(Dog.new("Fido"))  # => false (same object? no)
+```
+
+## Public and Private Methods
+
+By default all methods are public. Use `private` to hide internal details:
+
+```ruby
+class BankAccount
+  def initialize(balance)
+    @balance = balance
+  end
+
+  def withdraw(amount)
+    if sufficient_funds?(amount)
+      @balance -= amount
+    else
+      "Insufficient funds"
+    end
+  end
+
+  private
+
+  def sufficient_funds?(amount)
+    @balance >= amount
+  end
+end
+
+account = BankAccount.new(100)
+account.withdraw(30)          # => 70
+account.sufficient_funds?(50) # => NoMethodError (private method)
 ```
