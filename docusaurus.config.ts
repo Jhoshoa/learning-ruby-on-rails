@@ -11,8 +11,8 @@ const config: Config = {
     v4: true,
   },
 
-  url: 'https://your-site.example.com',
-  baseUrl: '/',
+  url: 'https://jhoshoa.github.io',
+  baseUrl: '/learning-ruby-on-rails/',
 
   onBrokenLinks: 'throw',
 
