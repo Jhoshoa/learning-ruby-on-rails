@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?><?xml-stylesheet type="text/xsl" href="atom.xsl"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://jhoshoa.github.io/learning-ruby-on-rails/blog</id>
+    <title>Learning Ruby on Rails Blog</title>
+    <updated>2026-06-19T00:00:00.000Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://jhoshoa.github.io/learning-ruby-on-rails/blog"/>
+    <subtitle>Learning Ruby on Rails Blog</subtitle>
+    <icon>https://jhoshoa.github.io/learning-ruby-on-rails/img/ruby-logo.png</icon>
+    <entry>
+        <title type="html"><![CDATA[Starting My Ruby Journey]]></title>
+        <id>https://jhoshoa.github.io/learning-ruby-on-rails/blog/starting-ruby</id>
+        <link href="https://jhoshoa.github.io/learning-ruby-on-rails/blog/starting-ruby"/>
+        <updated>2026-06-19T00:00:00.000Z</updated>
+        <summary type="html"><![CDATA[Today I begin learning Ruby! I've set up this Docusaurus site to document]]></summary>
+        <content type="html"><![CDATA[<p>Today I begin learning Ruby! I've set up this Docusaurus site to document
+everything I learn along the way.</p>
+<!-- -->
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="why-ruby">Why Ruby?<a href="https://jhoshoa.github.io/learning-ruby-on-rails/blog/starting-ruby#why-ruby" class="hash-link" aria-label="Direct link to Why Ruby?" title="Direct link to Why Ruby?" translate="no">​</a></h2>
+<p>Ruby's focus on developer happiness and readable code is what drew me to it.
+Combined with the Rails framework, it's one of the most productive stacks for
+building web applications.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="whats-next">What's Next<a href="https://jhoshoa.github.io/learning-ruby-on-rails/blog/starting-ruby#whats-next" class="hash-link" aria-label="Direct link to What's Next" title="Direct link to What's Next" translate="no">​</a></h2>
+<ul>
+<li class="">Master Ruby syntax and OOP</li>
+<li class="">Build small CLI applications</li>
+<li class="">Dive into Ruby on Rails</li>
+<li class="">Create a full-stack web app</li>
+</ul>
+<p>Follow along with the docs!</p>]]></content>
+        <author>
+            <name>Ruby Learner</name>
+            <uri>https://github.com/learner</uri>
+        </author>
+        <category label="Ruby" term="Ruby"/>
+        <category label="Learning" term="Learning"/>
+    </entry>
+</feed>

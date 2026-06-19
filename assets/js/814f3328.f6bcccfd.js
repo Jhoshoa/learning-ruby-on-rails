@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunklearning_ruby_on_rails=self.webpackChunklearning_ruby_on_rails||[]).push([["1833"],{5513(e){e.exports=JSON.parse('{"title":"Recent posts","items":[{"title":"Starting My Ruby Journey","permalink":"/learning-ruby-on-rails/blog/starting-ruby","unlisted":false,"date":"2026-06-19T00:00:00.000Z"}]}')}}]);

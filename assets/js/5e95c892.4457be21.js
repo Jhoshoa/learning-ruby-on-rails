@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunklearning_ruby_on_rails=self.webpackChunklearning_ruby_on_rails||[]).push([["1668"],{6569(r,e,s){s.r(e),s.d(e,{default:()=>t});var a=s(4848);s(6540);var n=s(4164),u=s(4308),l=s(8287),c=s(2831),i=s(1085);function t(r){return(0,a.jsx)(u.e3,{className:(0,n.A)(l.G.wrapper.docsPages),children:(0,a.jsx)(i.A,{children:(0,c.v)(r.route.routes)})})}}}]);

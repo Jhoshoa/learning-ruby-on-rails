@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?><?xml-stylesheet type="text/xsl" href="rss.xsl"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+    <channel>
+        <title>Learning Ruby on Rails Blog</title>
+        <link>https://jhoshoa.github.io/learning-ruby-on-rails/blog</link>
+        <description>Learning Ruby on Rails Blog</description>
+        <lastBuildDate>Fri, 19 Jun 2026 00:00:00 GMT</lastBuildDate>
+        <docs>https://validator.w3.org/feed/docs/rss2.html</docs>
+        <generator>https://github.com/jpmonette/feed</generator>
+        <language>en</language>
+        <item>
+            <title><![CDATA[Starting My Ruby Journey]]></title>
+            <link>https://jhoshoa.github.io/learning-ruby-on-rails/blog/starting-ruby</link>
+            <guid>https://jhoshoa.github.io/learning-ruby-on-rails/blog/starting-ruby</guid>
+            <pubDate>Fri, 19 Jun 2026 00:00:00 GMT</pubDate>
+            <description><![CDATA[Today I begin learning Ruby! I've set up this Docusaurus site to document]]></description>
+            <content:encoded><![CDATA[<p>Today I begin learning Ruby! I've set up this Docusaurus site to document
+everything I learn along the way.</p>
+<!-- -->
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="why-ruby">Why Ruby?<a href="https://jhoshoa.github.io/learning-ruby-on-rails/blog/starting-ruby#why-ruby" class="hash-link" aria-label="Direct link to Why Ruby?" title="Direct link to Why Ruby?" translate="no">​</a></h2>
+<p>Ruby's focus on developer happiness and readable code is what drew me to it.
+Combined with the Rails framework, it's one of the most productive stacks for
+building web applications.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="whats-next">What's Next<a href="https://jhoshoa.github.io/learning-ruby-on-rails/blog/starting-ruby#whats-next" class="hash-link" aria-label="Direct link to What's Next" title="Direct link to What's Next" translate="no">​</a></h2>
+<ul>
+<li class="">Master Ruby syntax and OOP</li>
+<li class="">Build small CLI applications</li>
+<li class="">Dive into Ruby on Rails</li>
+<li class="">Create a full-stack web app</li>
+</ul>
+<p>Follow along with the docs!</p>]]></content:encoded>
+            <category>Ruby</category>
+            <category>Learning</category>
+        </item>
+    </channel>
+</rss>

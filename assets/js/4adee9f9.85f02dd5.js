@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunklearning_ruby_on_rails=self.webpackChunklearning_ruby_on_rails||[]).push([["6151"],{968(a){a.exports=JSON.parse('{"metadata":{"permalink":"/learning-ruby-on-rails/blog","page":1,"postsPerPage":10,"totalPages":1,"totalCount":1,"blogDescription":"Blog","blogTitle":"Blog"}}')}}]);
