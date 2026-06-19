@@ -91,6 +91,52 @@ Bird.new.move  # => "Moves somehow by flying"
 Fish.new.move  # => "Moves somehow by swimming"
 ```
 
+### `super` with Blocks
+
+`super` passes the block to the parent method automatically. You don't need to
+explicitly forward it:
+
+```ruby
+class Parent
+  def each
+    yield "A"
+    yield "B"
+  end
+end
+
+class Child < Parent
+  def each
+    super do |item|
+      yield "Child: #{item}"
+    end
+  end
+end
+
+Child.new.each { |s| puts s }
+# => "Child: A"
+# => "Child: B"
+```
+
+### `super` in Class Methods
+
+`super` also works in class methods:
+
+```ruby
+class Parent
+  def self.config
+    { adapter: "sqlite3" }
+  end
+end
+
+class Child < Parent
+  def self.config
+    super.merge(pool: 5)
+  end
+end
+
+Child.config  # => { adapter: "sqlite3", pool: 5 }
+```
+
 ## Overriding Methods
 
 Child classes can completely replace parent methods or extend them with `super`.
@@ -109,6 +155,161 @@ class Car < Vehicle
 end
 
 Car.new.start  # => "Insert key. Engine starting... Vroom!"
+```
+
+## `initialize` is Inherited
+
+If a child class **doesn't** define `initialize`, the parent's `initialize` is
+used:
+
+```ruby
+class Animal
+  def initialize(name)
+    @name = name
+  end
+
+  attr_reader :name
+end
+
+class Dog < Animal
+  # No initialize defined — inherits Animal#initialize
+end
+
+fido = Dog.new("Fido")
+fido.name  # => "Fido"
+```
+
+If the child **does** define `initialize`, it must call `super` to invoke the
+parent's constructor, otherwise the parent's setup is skipped:
+
+```ruby
+class Animal
+  def initialize(name)
+    @name = name
+  end
+end
+
+class Dog < Animal
+  def initialize(name, breed)
+    # Forgot to call super(name) — @name is never set
+    @breed = breed
+  end
+end
+
+Dog.new("Fido", "Golden").instance_variable_get(:@name)  # => nil
+```
+
+## Overriding `==` with Inheritance
+
+When overriding `==` in a hierarchy, use `is_a?` (not `instance_of?`) to allow
+subclass comparisons:
+
+```ruby
+class Animal
+  attr_reader :name
+
+  def initialize(name)
+    @name = name
+  end
+
+  def ==(other)
+    return false unless other.is_a?(Animal)
+    name == other.name
+  end
+end
+
+class Dog < Animal
+  attr_reader :breed
+
+  def initialize(name, breed)
+    super(name)
+    @breed = breed
+  end
+
+  def ==(other)
+    return false unless other.is_a?(Dog)
+    super && breed == other.breed
+  end
+end
+
+animal = Animal.new("Fido")
+dog = Dog.new("Fido", "Golden")
+
+dog == animal   # => false (Dog#== checks is_a? Dog)
+animal == dog   # => true  (Animal#== checks is_a? Animal)
+```
+
+## The Abstract Method Pattern
+
+Ruby has no `abstract` keyword. Instead, raise `NotImplementedError` in the
+parent method to force subclasses to override:
+
+```ruby
+class Animal
+  def speak
+    raise NotImplementedError,
+      "#{self.class} must implement #speak"
+  end
+end
+
+class Dog < Animal
+  def speak
+    "Woof!"
+  end
+end
+
+class Cat < Animal
+  # Forgot to implement speak
+end
+
+Dog.new.speak  # => "Woof!"
+Cat.new.speak  # => NotImplementedError: Cat must implement #speak
+```
+
+## The `class` and `superclass` Methods
+
+Every object in Ruby knows its class and every class knows its parent:
+
+```ruby
+fido = Dog.new("Fido")
+
+fido.class               # => Dog
+fido.class.superclass    # => Animal
+Animal.superclass         # => Object
+Object.superclass         # => BasicObject
+BasicObject.superclass    # => nil
+
+# Check inheritance relationship
+Dog < Animal        # => true
+Animal < Dog        # => false
+Dog < Object        # => true
+Dog < BasicObject   # => true
+Dog < String        # => nil (not related)
+```
+
+## `dup` and `clone` in Inheritance
+
+If you override `initialize_copy`, remember to call `super` to copy parent
+instance variables:
+
+```ruby
+class Animal
+  attr_accessor :name
+
+  def initialize_copy(original)
+    super
+    # Animal-specific copy logic if needed
+  end
+end
+
+class Dog < Animal
+  attr_accessor :breed
+
+  def initialize_copy(original)
+    super
+    @breed = @breed.dup  # deep-copy mutable attributes
+  end
+end
 ```
 
 ## Type Checking: `is_a?` vs `instance_of?`
@@ -134,12 +335,13 @@ fido.instance_of?(Animal)  # => false (exact class, no inheritance)
 
 When Ruby looks for a method, it follows this order:
 
-1. The object's own class
-2. Prepended modules (last prepended searched first)
-3. Included modules (last included searched first)
-4. Parent class
-5. Parent's prepended/included modules
-6. Repeat up the chain to `BasicObject`
+1. The object's own singleton class
+2. The object's class
+3. Prepended modules (last prepended searched first)
+4. Included modules (last included searched first)
+5. Parent class
+6. Parent's prepended/included modules
+7. Repeat up the chain to `BasicObject`
 
 ```ruby
 class Animal; end
@@ -155,7 +357,12 @@ Dog.ancestors
 # => [Dog, Climbable, Swimmable, Animal, Object, Kernel, BasicObject]
 ```
 
-Use `Dog.ancestors` to see the full lookup chain at any time.
+Use `Dog.ancestors` to see the full lookup chain at any time. Use
+`Dog.included_modules` to see just the mixed-in modules:
+
+```ruby
+Dog.included_modules  # => [Climbable, Swimmable, Kernel]
+```
 
 ## Inheritance vs Modules (When to Use What)
 

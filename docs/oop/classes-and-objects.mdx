@@ -5,8 +5,8 @@ sidebar_position: 1
 # Classes and Objects
 
 Ruby is a **pure object-oriented language**. Everything you interact with is an
-object—numbers, strings, arrays, even classes themselves. Objects are instances
-of classes.
+object — numbers, strings, arrays, even classes themselves. Objects are
+instances of classes.
 
 ## Defining a Class
 
@@ -67,6 +67,11 @@ fido.speak  # => "Fido says Woof!"
 bella.speak # => "Bella says Woof!"
 ```
 
+Instance variables are **private by default** — there is no way to access `@name`
+from outside the class unless you define a getter method. Unlike some languages,
+Ruby instance variables are always encapsulated and never part of a public
+interface unless you explicitly expose them.
+
 ## Accessors (Getters and Setters)
 
 Ruby provides shortcuts for creating getter and setter methods instead of
@@ -87,7 +92,7 @@ end
 ```
 
 Instead, use these built-in **methods** (they are **not keywords** — they are
-class methods that dynamically generate getter/setter methods for you at
+Module class methods that dynamically generate getter/setter methods for you at
 runtime). The symbol you pass can be **any word** — the method name
 (`_reader`/`_writer`/`_accessor`) determines what gets generated, not the
 symbol itself:
@@ -197,6 +202,114 @@ Dog.new
 Dog.total  # => 3
 ```
 
+:::caution
+Class variables are shared with **all subclasses**, which can lead to
+unexpected behaviour. Prefer **class instance variables** (`@var` at the class
+level) when you want a variable that belongs only to the specific class, not
+its descendants.
+:::
+
+### Class Instance Variables
+
+A `@` variable defined **inside the class body but outside any method** belongs
+to the class object itself (not instances). Each subclass gets its own copy:
+
+```ruby
+class Vehicle
+  @count = 0
+
+  def self.count
+    @count || 0
+  end
+
+  def self.increment_count
+    @count = (@count || 0) + 1
+  end
+end
+
+class Car < Vehicle
+  @count = 0
+end
+
+Vehicle.increment_count  # Vehicle.@count => 1
+Car.count                # => 0 (separate from Vehicle)
+
+# Compare with @@class variable:
+class Vehicle
+  @@count = 0
+
+  def self.count
+    @@count
+  end
+end
+
+class Car < Vehicle; end
+
+Vehicle.count  # => 0
+Car.count      # => 0 (same @@count, shared!)
+```
+
+## Constants
+
+Constants start with a capital letter. By convention, they are written in
+`SCREAMING_SNAKE_CASE` for values and `PascalCase` for classes/modules.
+
+```ruby
+class Planet
+  GRAVITY = 9.81      # constant
+  MIN_NAME_LENGTH = 2
+
+  def initialize(name)
+    @name = name
+  end
+end
+
+Planet::GRAVITY  # => 9.81
+```
+
+Constants can be accessed from outside the class with `::`. The lookup path is
+**lexical** (based on where the code is written), not inheritance-based:
+
+```ruby
+class Animal
+  LEGS = 4
+end
+
+class Dog < Animal
+  def legs
+    LEGS           # resolves to Animal::LEGS
+  end
+end
+
+Dog.new.legs  # => 4
+```
+
+However, if a constant is not found lexically, Ruby walks up the inheritance
+chain:
+
+```ruby
+class Animal
+  SOUND = "generic"
+end
+
+class Dog < Animal
+  SOUND = "bark"
+
+  def sound
+    SOUND  # finds Dog::SOUND first
+  end
+end
+
+Dog.new.sound  # => "bark"
+```
+
+Constants are **not truly constant** — Ruby warns but doesn't prevent
+reassignment:
+
+```ruby
+Planet::GRAVITY = 9.8   # warning: already initialized constant
+```
+
 ## The `self` Keyword
 
 `self` is a special variable that always points to the **current object** — the
@@ -275,7 +388,7 @@ class Person
 end
 ```
 
-## Converting to String (`to_s`)
+## Converting to String (`to_s` and `inspect`)
 
 Every class in Ruby automatically has a `to_s` method inherited from `Object`.
 By default it returns the class name and object ID:
@@ -306,6 +419,37 @@ puts fido  # => "Dog: Fido"  (your custom to_s)
 # to_s is called automatically in string interpolation too:
 "A dog named #{fido}"  # => "A dog named Dog: Fido"
 ```
+
+### `inspect` vs `to_s`
+
+`inspect` is for **developers** (debugging) and `to_s` is for **users**
+(display). The `p` method calls `inspect`; `puts` calls `to_s`.
+
+```ruby
+class Person
+  def initialize(name, age)
+    @name = name
+    @age = age
+  end
+
+  def to_s
+    "#{@name} (#{@age})"
+  end
+
+  def inspect
+    "#<Person:#{object_id} @name=#{@name.inspect} @age=#{@age}>"
+  end
+end
+
+alice = Person.new("Alice", 30)
+
+puts alice  # => Alice (30)         (to_s)
+p alice     # => #<Person:0x... @name="Alice" @age=30>  (inspect)
+```
+
+If you only override one, override `to_s`. `inspect` falls back to its default
+(which shows the class and object ID). Override `inspect` when the default is
+not helpful for debugging.
 
 ## Comparing Objects
 
@@ -359,6 +503,167 @@ class Dog
 end
 
 Dog.new("Fido") == Dog.new("Fido")  # => false (default: same object?)
+```
+
+### The `===` (Case Equality) Operator
+
+`===` is used by `case`/`when` statements. Each class defines it differently:
+
+```ruby
+case value
+when String  then "It's a string"     # String === value
+when 1..10   then "Between 1 and 10"  # Range === value
+when /hello/ then "Contains hello"    # Regexp === value
+else "Something else"
+end
+
+# Equivalent to:
+if String === value
+  "It's a string"
+elsif (1..10) === value
+  "Between 1 and 10"
+elsif /hello/ === value
+  "Contains hello"
+end
+```
+
+| Class | `===` behavior |
+|-------|----------------|
+| `Class` | `is_a?` — checks if the value is an instance of that class |
+| `Range` | `include?` — checks if the value falls in the range |
+| `Regexp` | `match?` — checks if the string matches |
+| `Proc` | `call` — invokes the proc with the value |
+| Default | Same as `==` |
+
+## Copying Objects: `dup` vs `clone`
+
+```ruby
+original = "hello"
+original.freeze
+
+dup_obj   = original.dup    # unfrozen copy
+clone_obj = original.clone  # frozen copy (preserves state)
+```
+
+| Behaviour | `dup` | `clone` |
+|-----------|-------|---------|
+| Copies instance variables | Yes | Yes |
+| Preserves frozen state | No | Yes |
+| Preserves singleton methods | No | Yes |
+| Preserves tainted state | Yes | Yes |
+
+Both `dup` and `clone` perform **shallow copies** — instance variables that
+reference objects still reference the same objects:
+
+```ruby
+class Team
+  attr_accessor :members
+
+  def initialize
+    @members = []
+  end
+end
+
+team1 = Team.new
+team1.members << "Alice"
+
+team2 = team1.dup
+team2.members << "Bob"
+
+team1.members  # => ["Alice", "Bob"]  — same array object!
+```
+
+To deep-copy, override `initialize_copy`:
+
+```ruby
+class Team
+  def initialize_copy(original)
+    super            # copies instance variables first
+    @members = @members.dup  # create a new array
+  end
+end
+```
+
+## Freezing Objects
+
+`freeze` makes an object immutable — you cannot modify its state:
+
+```ruby
+str = "hello".freeze
+str.upcase!  # FrozenError: can't modify frozen String
+
+str.upcase   # => "HELLO"  (returns new string, OK — doesn't modify)
+```
+
+Check if something is frozen with `frozen?`:
+
+```ruby
+"hello".frozen?      # => false
+"hello".freeze.frozen?  # => true
+```
+
+## The `tap` Method
+
+`tap` yields the object to a block and returns the object itself. It is perfect
+for debugging or chaining mutations:
+
+```ruby
+result = [1, 2, 3]
+  .map { |n| n * 2 }
+  .tap { |arr| puts "After map: #{arr}" }  # => [2, 4, 6]
+  .reject(&:even?)
+  .tap { |arr| puts "After reject: #{arr}" }  # => []
+
+# Common pattern: initializing and returning an object
+def build_user(params)
+  User.new.tap do |user|
+    user.name = params[:name]
+    user.email = params[:email]
+    user.save!
+  end
+end
+# The tap block runs, then user is returned automatically
+```
+
+## Dynamic Method Calling: `send` and `public_send`
+
+`send` lets you call a method by name (as a Symbol or String):
+
+```ruby
+obj = "hello"
+
+obj.send(:upcase)   # => "HELLO"
+obj.send(:reverse)  # => "olleh"
+```
+
+`public_send` is like `send` but respects method visibility (won't call private
+methods):
+
+```ruby
+obj.public_send(:upcase)           # => "HELLO"
+obj.send(:nil?)                     # => false (nil? is public)
+obj.send(:puts, "hello")            # => nil (private method, but send bypasses)
+obj.public_send(:puts, "hello")     # NoMethodError (private)
+```
+
+Always check with `respond_to?` before dynamically calling:
+
+```ruby
+obj.respond_to?(:upcase)  # => true
+```
+
+## Getting Method Objects
+
+You can get a method as an object and pass it around:
+
+```ruby
+m = "hello".method(:upcase)
+m.call    # => "HELLO"
+m.arity   # => 0
+m.owner   # => String
+
+# Pass as callback
+["a", "b", "c"].map(&:upcase)  # Symbol#to_proc
 ```
 
 ## Public and Private Methods
@@ -482,4 +787,107 @@ class BankAccount
     @balance >= amount
   end
 end
+```
+
+## The `allocate` Method
+
+Normally you create objects with `new`, which calls `allocate` then
+`initialize`. If you need an object **without** calling `initialize`, use
+`allocate` directly:
+
+```ruby
+class User
+  def initialize(name)
+    @name = name
+    @setup = true
+  end
+end
+
+user = User.allocate
+user.instance_variables  # => []  (initialize was never called)
+user.instance_variable_set(:@name, "Alice")
+user.instance_variable_get(:@name)  # => "Alice"
+```
+
+This is an advanced technique used internally by ORMs (ActiveRecord, etc.)
+to reconstruct objects from the database without calling their constructors.
+
+## Type Checking
+
+```ruby
+class Animal; end
+class Dog < Animal; end
+
+fido = Dog.new
+
+fido.instance_of?(Dog)      # => true (exact class match)
+fido.instance_of?(Animal)   # => false (exact class, no inheritance)
+
+fido.is_a?(Dog)             # => true
+fido.is_a?(Animal)          # => true (checks inheritance chain)
+fido.is_a?(Object)          # => true (everything is an Object)
+fido.kind_of?(Animal)       # => true (alias for is_a?)
+```
+
+## The Singleton Class (Eigenclass)
+
+Every object in Ruby has an invisible **singleton class** (also called
+eigenclass) that stores methods unique to that object. This is how class
+methods and per-object behaviour work.
+
+```ruby
+obj = "hello"
+
+# Open the singleton class
+class << obj
+  def shout
+    upcase + "!"
+  end
+end
+
+obj.shout  # => "HELLO!"
+"world".shout  # NoMethodError — only obj has it
+
+# Access the singleton class object
+singleton_class = class << obj; self; end
+obj.singleton_class  # same thing
+```
+
+Class methods are just singleton methods on the class object:
+
+```ruby
+class MyClass
+  class << self
+    def class_method
+      "I'm a class method"
+    end
+  end
+end
+
+# Equivalent to:
+def MyClass.class_method
+  "I'm a class method"
+end
+```
+
+## The `nil?` Method
+
+The only object for which `nil?` returns `true` is `nil` itself:
+
+```ruby
+nil.nil?      # => true
+false.nil?    # => false
+0.nil?        # => false
+"".nil?       # => false
+```
+
+This is useful for safe default patterns:
+
+```ruby
+def find_user(id)
+  # ...
+end
+
+user = find_user(42)
+user.nil? ? "Guest" : user.name
 ```

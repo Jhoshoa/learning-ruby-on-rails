@@ -1,0 +1,377 @@
+---
+sidebar_position: 4
+---
+
+# OOP Principles in Ruby
+
+Ruby embraces all four pillars of object-oriented programming, but often in a
+more dynamic, flexible way than languages like Java or C#. Understanding how
+Ruby implements each principle helps you write idiomatic Ruby code.
+
+## Encapsulation
+
+**Encapsulation** means hiding internal state and requiring all interaction to
+happen through an object's public interface. Ruby enforces this through:
+
+### Instance variables are always private
+
+Unlike languages where you can mark fields as `public`, `protected`, or
+`private`, Ruby instance variables (`@name`, `@age`, etc.) are **always
+encapsulated** — they can never be accessed from outside the object directly:
+
+```ruby
+class Person
+  def initialize(name)
+    @name = name
+  end
+end
+
+p = Person.new("Alice")
+p.@name  # SyntaxError — cannot access instance variables from outside
+p.name   # NoMethodError — no getter defined
+```
+
+You control what is exposed through **accessor methods**:
+
+```ruby
+class Person
+  def initialize(name, ssn)
+    @name = name
+    @ssn = ssn
+  end
+
+  # Explicitly choose what to expose
+  attr_reader :name       # read-only
+  attr_accessor :email    # read-write
+
+  # Computed public interface
+  def display_ssn
+    "***-**-#{@ssn[-4..]}"  # internal detail is hidden
+  end
+
+  private
+
+  def validate_ssn
+    @ssn.length == 11
+  end
+end
+```
+
+### Information hiding through access control
+
+Ruby's `private` and `protected` keywords control which methods are part of the
+public API:
+
+- **`public`** (default) — anyone can call
+- **`private`** — can only be called without a receiver (internal to the object)
+- **`protected`** — same as private, but allows access from other instances of the same class
+
+```ruby
+class BankAccount
+  def initialize(balance)
+    @balance = balance
+  end
+
+  def withdraw(amount)
+    return "Insufficient funds" unless sufficient?(amount)
+    @balance -= amount
+  end
+
+  private
+
+  def sufficient?(amount)
+    @balance >= amount
+  end
+end
+
+account = BankAccount.new(100)
+account.withdraw(30)          # => 70
+account.sufficient?(30)       # NoMethodError — private, encapsulated
+```
+
+### What Ruby encapsulation means
+
+Unlike Java/C# where encapsulation is enforced by the compiler, Ruby's
+encapsulation is enforced at **runtime**. You can bypass it with
+`send(:private_method)` — but doing so violates the contract and should be
+avoided unless absolutely necessary.
+
+```ruby
+account.send(:sufficient?, 30)  # works, but breaks encapsulation
+```
+
+## Polymorphism
+
+**Polymorphism** means "many forms" — the ability for different types of objects
+to respond to the same message in their own way. Ruby has three forms.
+
+### 1. Duck Typing (the most important form in Ruby)
+
+Ruby doesn't care about an object's class — it cares about whether the object
+**responds to the method** you're calling. This is called **duck typing**: "If
+it walks like a duck and quacks like a duck, it's a duck."
+
+```ruby
+class Duck
+  def speak
+    "Quack!"
+  end
+end
+
+class Dog
+  def speak
+    "Woof!"
+  end
+end
+
+class Robot
+  def speak
+    "BEEP BOOP"
+  end
+end
+
+def make_it_speak(animal)
+  puts animal.speak
+end
+
+make_it_speak(Duck.new)   # => "Quack!"
+make_it_speak(Dog.new)    # => "Woof!"
+make_it_speak(Robot.new)  # => "BEEP BOOP"
+```
+
+No inheritance, no interfaces, no type declarations — just objects that
+respond to `speak`. This is the most "Ruby" way to achieve polymorphism.
+
+### 2. Subtype Polymorphism (Inheritance)
+
+Through inheritance, a child class can override a parent method to provide its
+own behaviour:
+
+```ruby
+class Animal
+  def move
+    "Moves somehow"
+  end
+end
+
+class Bird < Animal
+  def move
+    "Flies"
+  end
+end
+
+class Fish < Animal
+  def move
+    "Swims"
+  end
+end
+
+[Bird.new, Fish.new, Animal.new].each { |a| puts a.move }
+# => "Flies"
+# => "Swims"
+# => "Moves somehow"
+```
+
+### 3. Polymorphism through Modules
+
+Unrelated classes can share behaviour by including the same module:
+
+```ruby
+module Swimmable
+  def swim
+    "Swimming!"
+  end
+end
+
+class Fish
+  include Swimmable
+end
+
+class Duck
+  include Swimmable
+end
+
+class Submarine
+  include Swimmable
+end
+
+[Fish.new, Duck.new, Submarine.new].each { |o| puts o.swim }
+```
+
+### Checking for polymorphic behaviour
+
+Use `respond_to?` to check if an object can handle a method — the idiomatic
+Ruby way:
+
+```ruby
+def make_it_speak(obj)
+  if obj.respond_to?(:speak)
+    obj.speak
+  else
+    "I don't know how to make this speak"
+  end
+end
+```
+
+### Duck typing vs Interface/Abstract Class Pattern
+
+In statically-typed languages, you declare an `interface` or `abstract class`.
+In Ruby, you rely on duck typing:
+
+| Java | Ruby |
+|------|------|
+| `implements Speakable` | Just define `speak` |
+| Compiler checks at compile time | Runtime check with `respond_to?` |
+| Rigid contract | Flexible contract (documented, not enforced) |
+
+```ruby
+# Ruby approach: document the expected interface
+class Auditor
+  # Expects objects that respond to #audit_log
+  def process(auditable)
+    log = auditable.audit_log  # duck typing
+    save(log)
+  end
+end
+```
+
+## Abstraction
+
+**Abstraction** means hiding complex implementation details behind a simple
+interface. Ruby achieves this through several mechanisms.
+
+### 1. Method Hiding (Private Methods)
+
+Private methods keep internal complexity hidden:
+
+```ruby
+class CoffeeMachine
+  def make_coffee
+    heat_water
+    grind_beans
+    brew
+    pour
+  end
+
+  private
+
+  def heat_water
+    puts "Heating water to 95°C"
+  end
+
+  def grind_beans
+    puts "Grinding beans"
+  end
+
+  def brew
+    puts "Brewing"
+  end
+
+  def pour
+    puts "Pouring into cup"
+  end
+end
+
+machine = CoffeeMachine.new
+machine.make_coffee  # simple public API
+# The 4 private steps are abstracted away
+```
+
+The user of `CoffeeMachine` only needs to know about `make_coffee`. The
+complexity of the four steps is abstracted away.
+
+### 2. Abstract Base Classes (NotImplementedError)
+
+Ruby has no `abstract` keyword, but you can enforce abstraction by raising
+`NotImplementedError`:
+
+```ruby
+class Shape
+  def area
+    raise NotImplementedError,
+      "#{self.class} must implement #area"
+  end
+
+  def perimeter
+    raise NotImplementedError,
+      "#{self.class} must implement #perimeter"
+  end
+end
+
+class Circle < Shape
+  def initialize(radius)
+    @radius = radius
+  end
+
+  def area
+    Math::PI * @radius ** 2
+  end
+
+  # Forgot to implement perimeter
+end
+
+Circle.new(5).area       # => 78.539...
+Circle.new(5).perimeter  # NotImplementedError
+```
+
+### 3. Modules as Abstract Interfaces
+
+Modules can define the expected interface without implementation:
+
+```ruby
+module Readable
+  # Defines the contract: including class must implement #read
+  def read
+    raise NotImplementedError, "#{self.class} must implement #read"
+  end
+end
+
+class Document
+  include Readable
+
+  def read
+    "Reading document..."
+  end
+end
+```
+
+### 4. Duck Typing as Abstraction
+
+Duck typing itself is a form of abstraction — you abstract away the object's
+concrete type and only depend on its behaviour:
+
+```ruby
+# The #log method doesn't care WHAT kind of logger it gets,
+# only THAT it responds to #info
+def log_info(logger, message)
+  logger.info(message)  # Could be Rails logger, syslog, stdout...
+end
+```
+
+### 5. attr_reader/writer/accessor as Abstraction
+
+Accessor methods abstract away whether a value is stored in an instance
+variable, computed, or fetched from a database:
+
+```ruby
+class Person
+  def full_name
+    "#{first_name} #{last_name}"
+  end
+
+  # Later, you can change this to a database lookup
+  # without changing the interface:
+  def age
+    # Could be @age, or a calculation from birthdate, or a DB query
+    @age
+  end
+end
+```
+
+## Summary Table
+
+| Principle | Ruby Mechanism | Key Difference from Java/C# |
+|-----------|---------------|-----------------------------|
+| **Encapsulation** | `private`/`protected`, instance variables always private | Can be bypassed with `send()`; enforced at runtime, not compile-time |
+| **Polymorphism** | Duck typing, inheritance, modules | No explicit interfaces needed; checked at call time, not declaration time |
+| **Abstraction** | Private methods, `NotImplementedError`, duck typing | No `abstract`/`interface` keywords; convention-driven |

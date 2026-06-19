@@ -23,6 +23,7 @@ const sidebars: SidebarsConfig = {
         'oop/classes-and-objects',
         'oop/modules-and-mixins',
         'oop/inheritance',
+        'oop/oop-principles',
       ],
     },
     {

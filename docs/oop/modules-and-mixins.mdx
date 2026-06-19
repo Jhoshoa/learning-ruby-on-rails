@@ -11,7 +11,8 @@ behavior across unrelated classes.
 ## What is a Module?
 
 A module is a collection of methods and constants. Unlike classes, modules
-**cannot be instantiated** (you can't call `.new` on them).
+**cannot be instantiated** (you can't call `.new` on them) and they **cannot be
+inherited from**.
 
 ```ruby
 module Swimmable
@@ -63,6 +64,16 @@ end
 User.find(1)  # => "Found record with id 1"
 ```
 
+You can also `extend` individual objects (adds to the object's singleton
+class):
+
+```ruby
+obj = "hello"
+obj.extend(Findable)
+obj.find(1)  # => "Found record with id 1"
+"world".find(1)  # NoMethodError — only obj has it
+```
+
 ## `include` vs `extend` vs `prepend`
 
 | Method | Where methods go | Use case |
@@ -92,6 +103,101 @@ Document.new.save
 # => "Document saved"
 ```
 
+The key insight: `prepend` inserts the module **before** the class in the
+method lookup chain. This is the only way to wrap an existing method without
+modifying the class directly.
+
+## `module_function` — Dual-Purpose Methods
+
+`module_function` makes a method available as both a **module method** (called
+directly on the module) and as a **mixin method** (called on an instance when
+included):
+
+```ruby
+module MathHelper
+  def square(n)
+    n * n
+  end
+
+  def cube(n)
+    n * n * n
+  end
+
+  module_function :square, :cube
+  # or: module_function  # everything below becomes module_function
+end
+
+# Called as module methods
+MathHelper.square(4)  # => 16
+MathHelper.cube(3)    # => 27
+
+# Called as mixin instance methods
+class Calculator
+  include MathHelper
+end
+
+Calculator.new.square(4)  # => 16
+```
+
+This pattern is used by Ruby's built-in `Kernel` module — methods like `puts`,
+`print`, `gets` are available everywhere because `Kernel` is included in
+`Object`, and they're also callable as `Kernel.puts`.
+
+## The `self.included` / `self.extended` / `self.prepended` Hooks
+
+Modules can define callbacks that fire when they are mixed into a class:
+
+```ruby
+module Tracking
+  def self.included(base)
+    puts "#{base} included me!"
+    base.extend(ClassMethods)  # add class methods when included
+  end
+
+  module ClassMethods
+    def track_instances
+      puts "Tracking instances of #{self}"
+    end
+  end
+end
+
+class User
+  include Tracking
+end
+# => "User included me!"
+
+User.track_instances  # => "Tracking instances of User"
+```
+
+This `included` + `extend` pattern is extremely common in Ruby libraries. It
+lets a single module add **both** instance methods and class methods with one
+`include`:
+
+```ruby
+module HasTimestamps
+  def self.included(base)
+    base.extend(ClassMethods)
+  end
+
+  module ClassMethods
+    def timestamp_attributes
+      [:created_at, :updated_at]
+    end
+  end
+
+  def touch!
+    puts "Touching #{self.class}"
+  end
+end
+
+class Post
+  include HasTimestamps
+end
+
+Post.timestamp_attributes  # class method from the hook
+Post.new.touch!              # instance method from the module
+```
+
 ## Namespacing
 
 Modules prevent naming collisions by acting as containers:
@@ -114,6 +220,118 @@ api_user = Api::User.new
 ```
 
 Access constants inside a module with the `::` operator.
+
+### Module Nesting
+
+Modules can be nested, and constant lookup follows the nesting chain:
+
+```ruby
+module Outer
+  module Inner
+    class Test; end
+  end
+end
+
+Outer::Inner::Test.new
+
+# Module.nesting shows the current lookup path
+module Outer
+  module Inner
+    Module.nesting  # => [Outer::Inner, Outer]
+  end
+end
+```
+
+## Constants in Modules
+
+Modules can define constants, which are accessed with `::`:
+
+```ruby
+module Config
+  API_ENDPOINT = "https://api.example.com"
+  TIMEOUT = 30
+end
+
+Config::API_ENDPOINT  # => "https://api.example.com"
+Config::TIMEOUT       # => 30
+```
+
+Constants defined in a module are available to classes that include it, but
+only through the class (not through the module's namespace):
+
+```ruby
+module Swimmable
+  MAX_DEPTH = 100
+end
+
+class Fish
+  include Swimmable
+end
+
+Fish::MAX_DEPTH  # => 100 (available through the including class)
+Swimmable::MAX_DEPTH  # => 100 (also available through the module)
+```
+
+## Refinements (Scoped Monkey-Patching)
+
+Monkey-patching modifies classes globally, which can cause conflicts.
+**Refinements** let you modify behaviour **only within a specific scope**:
+
+```ruby
+module StringExtensions
+  refine String do
+    def shout
+      upcase + "!"
+    end
+  end
+end
+
+# Without using — shout is NOT available
+"hello".shout  # NoMethodError
+
+# With using — shout IS available in this scope
+using StringExtensions
+
+"hello".shout  # => "HELLO!"
+```
+
+Refinements are scoped to the file or module end:
+
+```ruby
+module MyApp
+  using StringExtensions
+
+  def process(name)
+    name.shout  # Works here
+  end
+end
+
+# Outside MyApp, shout is NOT available
+```
+
+### Real-world example: adding methods to Integer
+
+```ruby
+module IntegerExtensions
+  refine Integer do
+    def minutes
+      self * 60
+    end
+
+    def hours
+      self * 3600
+    end
+  end
+end
+
+using IntegerExtensions
+
+2.hours    # => 7200
+30.minutes # => 1800
+```
+
+Refinements are the **safe** alternative to global monkey-patching. Use them in
+library code to avoid polluting the global namespace.
 
 ## The `Comparable` Module
 
@@ -173,6 +391,31 @@ playlist.add("Song C")
 playlist.map { |s| s.upcase }   # => ["SONG A", "SONG B", "SONG C"]
 playlist.any? { |s| s == "Song A" }  # => true
 ```
+
+### What you get from Enumerable
+
+| Method | What it does |
+|--------|-------------|
+| `map` / `collect` | Transform each element |
+| `select` / `filter` | Keep elements matching condition |
+| `reject` | Remove elements matching condition |
+| `reduce` / `inject` | Accumulate a value |
+| `any?` | True if any element matches |
+| `all?` | True if all elements match |
+| `none?` | True if no elements match |
+| `first` | First element |
+| `take(n)` | First n elements |
+| `drop(n)` | All except first n |
+| `min` / `max` | Min/max element |
+| `sort` | Sorted array |
+| `each_with_index` | Iterate with index |
+| `group_by` | Group by block result |
+| `partition` | Split into two arrays |
+| `uniq` | Remove duplicates |
+| `count` | Count elements |
+| `include?` | Check if element exists |
+| `grep` | Filter by pattern (`===`) |
+| `chunk` | Group consecutive elements |
 
 ## Module Methods (for utility modules)
 
