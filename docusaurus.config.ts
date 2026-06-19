@@ -93,6 +93,7 @@ const config: Config = {
           title: 'Resources',
           items: [
             {label: 'Ruby Documentation', href: 'https://ruby-doc.org/'},
+            {label: 'Try Ruby', href: 'https://try.ruby-lang.org/'},
             {label: 'RubyGems', href: 'https://rubygems.org/'},
             {label: 'Rails Guides', href: 'https://guides.rubyonrails.org/'},
           ],
