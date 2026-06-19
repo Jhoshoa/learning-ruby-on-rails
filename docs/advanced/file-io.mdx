@@ -4,42 +4,314 @@ sidebar_position: 4
 
 # File I/O
 
-Ruby provides straightforward file handling capabilities.
+Ruby provides several layers for file and I/O operations, from low-level `IO`
+methods to high-level convenience wrappers in the standard library.
+
+## The IO Class
+
+Both `File` and `STDIN`/`STDOUT` inherit from `IO`. Understanding `IO` methods
+gives you consistent access to any input/output stream.
+
+```ruby
+$stdin.gets      # Read a line from standard input
+$stdout.puts     # Write a line to standard output
+$stderr.print    # Write to standard error (no newline)
+```
+
+## File Modes
+
+When opening a file, the **mode** string determines access type:
+
+| Mode | Description |
+|------|-------------|
+| `"r"` | Read-only, starts at beginning (default) |
+| `"r+"` | Read + write, starts at beginning |
+| `"w"` | Write-only, truncates existing or creates new |
+| `"w+"` | Read + write, truncates existing or creates new |
+| `"a"` | Append-only, starts at end, creates new |
+| `"a+"` | Read + append, starts at end, creates new |
+| `"b"` | Binary mode (append to any of the above, e.g. `"rb"`) |
+
+```ruby
+File.open("data.txt", "r") { |f| f.read }
+File.open("data.txt", "a") { |f| f.puts "new line" }
+File.open("binary.jpg", "rb") { |f| f.read }
+```
 
 ## Reading Files
 
 ```ruby
-# Read entire file
+# Read entire file into a string
 content = File.read("example.txt")
 
-# Read line by line
+# Read all lines into an array
+lines = File.readlines("example.txt")
+
+# Read line by line (memory efficient)
 File.foreach("example.txt") do |line|
   puts line
 end
 
-# With block (auto-closes)
+# With a block (auto-closes)
 File.open("example.txt", "r") do |file|
-  file.each_line { |line| puts line }
+  puts file.read
+end
+
+# Read without a block (must close manually)
+file = File.open("example.txt")
+puts file.read
+file.close
+```
+
+### Reading in chunks
+
+```ruby
+File.open("large_file.bin", "rb") do |file|
+  while chunk = file.read(4096)  # 4KB at a time
+    process(chunk)
+  end
 end
 ```
 
 ## Writing Files
 
 ```ruby
-# Overwrite
+# Overwrite entire file (creates if missing)
 File.write("output.txt", "Hello, Ruby!")
 
-# Append
-File.open("output.txt", "a") do |file|
-  file.puts "New line"
+# Append to existing file
+File.write("output.txt", "New line\n", mode: "a")
+
+# With a block
+File.open("output.txt", "w") do |file|
+  file.puts "Line 1"
+  file.print "Line 2 (no newline)"
+  file.write "Line 3"
 end
+```
+
+### Write methods compared
+
+```ruby
+file.puts "text"   # Appends "\n" if not present
+file.print "text"  # No newline added
+file.write "text"  # Returns bytes written, no newline
+file << "text"     # Shovel operator, returns file
+```
+
+## Directory Operations with Dir
+
+```ruby
+# List entries
+Dir.entries(".")            # => [".", "..", "file1.rb", ...]
+Dir.children(".")           # => ["file1.rb", ...] — excludes . and ..
+Dir.each_child(".") { |f| puts f }
+
+# Glob pattern matching
+Dir.glob("*.rb")            # All Ruby files in current dir
+Dir.glob("**/*.md")         # All Markdown files recursively
+Dir.glob("src/**/*.{rb,js}") # Ruby and JS files in src/
+
+# Create and delete directories
+Dir.mkdir("new_folder")
+Dir.mkdir("nested/a/b/c")   # Fails unless parents exist
+Dir.rmdir("new_folder")     # Must be empty
+
+# Create intermediate directories
+require "fileutils"
+FileUtils.mkdir_p("nested/a/b/c")
+FileUtils.rm_rf("nested")   # Remove recursively
+```
+
+## FileUtils
+
+The `fileutils` standard library provides Unix-like file operations:
+
+```ruby
+require "fileutils"
+
+FileUtils.cp("source.txt", "dest.txt")
+FileUtils.cp_r("src_dir", "backup_dir")       # Recursive copy
+FileUtils.mv("old_name.txt", "new_name.txt")
+FileUtils.rm("file.txt")
+FileUtils.rm_f("file.txt")                    # Force (no error if missing)
+FileUtils.rm_rf("dir")                        # Remove recursively + force
+FileUtils.chmod("u+w", "file.txt")            # Change permissions
+FileUtils.compare_file("a.txt", "b.txt")      # Content comparison
+```
+
+## Pathname
+
+`Pathname` is a cleaner, object-oriented way to handle file paths — prefer it
+over raw string manipulation.
+
+```ruby
+require "pathname"
+
+path = Pathname.new("docs/advanced/file-io.md")
+
+path.basename       # => #<Pathname:file-io.md>
+path.basename(".md") # => #<Pathname:file-io>
+path.dirname        # => #<Pathname:docs/advanced>
+path.extname        # => ".md"
+path.parent         # => #<Pathname:docs>
+
+# Joining paths
+Pathname.new("docs") + "advanced" + "file-io.md"
+# => #<Pathname:docs/advanced/file-io.md>
+
+# Clean, absolute paths
+Pathname.new("docs/../docs/./file.txt").cleanpath
+# => #<Pathname:docs/file.txt>
+
+# File status
+path.exist?         # => true/false
+path.directory?     # => true/false
+path.file?          # => true/false
+path.size           # bytes
+path.mtime          # modification time
 ```
 
 ## File Information
 
 ```ruby
-File.exist?("example.txt")  # => true/false
-File.size("example.txt")    # bytes
-File.directory?("docs")     # => true/false
-File.extname("photo.jpg")   # => ".jpg"
+File.exist?("example.txt")   # => true/false
+File.file?("example.txt")    # Regular file?
+File.directory?("docs")      # Directory?
+File.symlink?("link")        # Symbolic link?
+File.size("example.txt")     # Size in bytes
+File.size?("example.txt")    # nil if empty, size otherwise
+File.zero?("empty.txt")      # True if empty
+File.extname("photo.jpg")    # => ".jpg"
+File.basename("a/b/c.rb")    # => "c.rb"
+File.basename("a/b/c.rb", ".rb") # => "c"
+File.dirname("a/b/c.rb")     # => "a/b"
+File.atime("file.txt")       # Last access time
+File.mtime("file.txt")       # Last modification time
+File.ctime("file.txt")       # Last status change time
 ```
+
+## Tempfile
+
+Temporary files are useful for tests or processing large data:
+
+```ruby
+require "tempfile"
+
+Tempfile.create do |file|
+  file.puts "Temporary data"
+  file.rewind
+  puts file.read
+  # File is automatically deleted after the block
+end
+
+# Without a block (must close & unlink manually)
+temp = Tempfile.new("prefix")
+temp.path  # => "/tmp/prefix20250301-1234-abc.rb"
+temp.close
+temp.unlink  # Delete the file
+```
+
+## Serialization
+
+### Marshal (Ruby-specific binary format)
+
+```ruby
+data = { name: "Ruby", version: 3.4 }
+
+# Serialize
+serialized = Marshal.dump(data)
+
+# Deserialize
+restored = Marshal.load(serialized)
+```
+
+:::caution
+`Marshal.load` can execute arbitrary code if the serialized data is untrusted.
+Never unmarshal data from untrusted sources.
+:::
+
+### YAML
+
+```ruby
+require "yaml"
+
+data = { name: "Ruby", version: 3.4 }
+
+# Write YAML
+File.write("config.yml", YAML.dump(data))
+
+# Read YAML
+restored = YAML.load_file("config.yml")
+```
+
+### JSON
+
+```ruby
+require "json"
+
+# Parse JSON string
+parsed = JSON.parse('{"name": "Ruby", "version": 3.4}')
+parsed["name"]   # => "Ruby"
+
+# Generate JSON string
+json = JSON.generate({ name: "Ruby", version: 3.4 })
+```
+
+### CSV
+
+```ruby
+require "csv"
+
+# Read CSV
+CSV.foreach("data.csv", headers: true) do |row|
+  puts row["name"]
+end
+
+# Write CSV
+CSV.open("output.csv", "w") do |csv|
+  csv << ["name", "age"]
+  csv << ["Alice", 30]
+  csv << ["Bob", 25]
+end
+```
+
+## Encoding
+
+Ruby strings have an encoding attached. File operations respect encoding:
+
+```ruby
+# Specify encoding when reading
+content = File.read("file.txt", encoding: "UTF-8")
+
+# Default external encoding
+File.open("data.txt", "r:UTF-8") { |f| f.read }
+File.open("data.txt", "r:UTF-8:ISO-8859-1") { |f| f.read }
+# Read as UTF-8, transcode internal strings to ISO-8859-1
+
+# Check encoding
+"hello".encoding  # => #<Encoding:UTF-8>
+```
+
+## Standard Input
+
+```ruby
+# Read one line
+name = gets.chomp
+
+# Read all lines
+STDIN.each_line { |line| puts "Got: #{line}" }
+
+# ARGF reads from files given as arguments, or STDIN otherwise
+ARGF.each_line { |line| puts line }
+```
+
+## Best Practices
+
+1. **Always close files** — use the block form of `File.open` which auto-closes
+2. **Use `foreach` for large files** — avoids loading the entire file into memory
+3. **Prefer `Pathname`** over string concatenation for paths
+4. **Use `FileUtils`** for complex operations (copy, move, recursive delete)
+5. **Handle encoding explicitly** — don't rely on defaults for production code
+6. **Never `Marshal.load` untrusted data** — it can execute arbitrary code
+7. **Use `Tempfile`** for disposable files instead of managing cleanup manually

@@ -4,7 +4,44 @@ sidebar_position: 2
 
 # Error Handling
 
-Ruby uses exceptions for error handling, with a `begin/rescue/end` structure.
+Ruby uses **exceptions** for error handling. An exception is an object — an
+instance of the `Exception` class or one of its subclasses. When something goes
+wrong, Ruby "raises" the exception, and unless it is "rescued", the program
+terminates.
+
+## Exception Hierarchy
+
+Understanding the hierarchy helps you catch the right exceptions and avoid
+catching ones you shouldn't.
+
+```
+Exception
+├── SystemExit          # Raised by Kernel#exit
+├── SignalException     # Raised by external signals (Ctrl+C)
+├── Interrupt           # Raised by Ctrl+C (subclass of SignalException)
+├── ScriptError
+│   ├── LoadError       # require fails
+│   ├── NotImplementedError
+│   └── SyntaxError     # Invalid code
+├── StandardError       # What you should actually rescue from
+│   ├── RuntimeError    # Default with Kernel#raise
+│   ├── ArgumentError   # Wrong number of arguments
+│   ├── NoMethodError   # Calling a method that doesn't exist
+│   ├── NameError       # Undefined constant/variable
+│   ├── TypeError       # Wrong type (e.g. nil + "string")
+│   ├── ZeroDivisionError
+│   ├── IndexError      # Array index out of bounds
+│   ├── KeyError        # Hash key not found
+│   ├── IOError         # Input/output failure
+│   └── ...many more
+└── fatal               # Internal VM error (cannot rescue)
+```
+
+:::warning
+Never rescue `Exception`. It traps `SystemExit` (preventing clean shutdown) and
+`SignalException` (preventing Ctrl+C). Always rescue `StandardError` or a
+specific subclass.
+:::
 
 ## Basic Rescue
 
@@ -13,24 +50,48 @@ begin
   result = 10 / 0
 rescue ZeroDivisionError => e
   puts "Error: #{e.message}"
+  puts e.backtrace.first(3).join("\n")   # stack trace
 end
 ```
 
-## Multiple Rescue Clauses
+### Rescue with multiple clauses
+
+Order matters — Ruby tries each `rescue` clause in order and uses the first one
+that matches.
 
 ```ruby
 begin
-  risky_operation
-rescue ZeroDivisionError => e
-  puts "Division error: #{e.message}"
+  data = JSON.parse(user_input)
+rescue JSON::ParserError => e
+  puts "Invalid JSON: #{e.message}"
 rescue TypeError => e
   puts "Type error: #{e.message}"
-rescue => e  # catches any StandardError
-  puts "Unknown error: #{e.message}"
+rescue => e  # catches any StandardError not caught above
+  puts "Unexpected: #{e.message}"
 end
 ```
 
+## Else Clause
+
+The `else` block runs **only if no exception was raised**:
+
+```ruby
+begin
+  result = risky_operation
+rescue => e
+  puts "Failed: #{e.message}"
+else
+  puts "Succeeded with: #{result}"
+end
+```
+
+This is cleaner than putting the success logic after the `begin/rescue` block
+because it won't accidentally run if rescue itself raises.
+
 ## Ensure (Always Runs)
+
+Ensure runs regardless of whether an exception was raised or not — perfect for
+cleanup like closing files or releasing locks.
 
 ```ruby
 file = File.open("data.txt")
@@ -39,27 +100,174 @@ begin
 rescue => e
   puts "Error: #{e.message}"
 ensure
-  file.close
+  file.close   # always runs, even if rescue raises
 end
 ```
+
+A common Ruby idiom uses ensure with the block form of `File.open` (which
+auto-closes), but the pattern above is useful for custom resources.
 
 ## Raising Exceptions
 
 ```ruby
-def divide(a, b)
-  raise ArgumentError, "Cannot divide by zero" if b == 0
-  a / b
-end
+# Raises RuntimeError with message "Something went wrong"
+raise "Something went wrong"
 
-raise "Something went wrong"  # RuntimeError by default
+# Raises a specific exception class
+raise ArgumentError, "Value must be positive"
+
+# With a custom message and backtrace
+raise ArgumentError.new("Invalid input"), caller
 ```
 
-## Custom Exceptions
+### Custom exceptions
+
+Custom exception classes inherit from `StandardError` (or a more specific
+subclass):
 
 ```ruby
 class AuthenticationError < StandardError; end
+class RateLimitError < AuthenticationError; end
 
 def login(username, password)
   raise AuthenticationError, "Invalid credentials" unless valid?
+  raise RateLimitError, "Too many attempts" if rate_limited?
+end
+
+begin
+  login("user", "wrong")
+rescue RateLimitError => e
+  puts "You're locked out: #{e.message}"
+rescue AuthenticationError => e
+  puts "Login failed: #{e.message}"
+end
+```
+
+Because `RateLimitError < AuthenticationError < StandardError`, the first
+`rescue` clause catches rate-limit errors first (more specific), and the second
+catches other auth errors.
+
+## Retry
+
+The `retry` statement re-runs the entire `begin` block — useful for transient
+failures.
+
+```ruby
+attempts = 0
+
+begin
+  attempts += 1
+  http_request
+rescue NetworkError
+  retry if attempts < 3
+  puts "Failed after #{attempts} attempts"
+end
+```
+
+Be careful with `retry`: without a limit, it loops forever.
+
+## Throw and Catch (Control Flow)
+
+`throw`/`catch` is **not** for error handling — it is for non-local control
+flow (exiting deeply nested loops or searches).
+
+```ruby
+result = catch(:found) do
+  (1..10).each do |i|
+    (1..10).each do |j|
+      throw(:found, i * j) if i * j == 42
+    end
+  end
+  nil  # default if no throw
+end
+
+puts result  # => 42
+```
+
+This is the only idiomatic use of `throw`/`catch` in Ruby. Everything else
+should use `raise`/`rescue`.
+
+## Rescue Modifier (Inline Rescue)
+
+For simple cases where a default value is OK on failure:
+
+```ruby
+value = risky_operation rescue "default"
+
+# Equivalent to:
+value = begin
+  risky_operation
+rescue
+  "default"
+end
+```
+
+:::caution
+Inline rescue catches **all** StandardError, making debugging harder. Use it
+sparingly, only when you truly don't care why it failed.
+:::
+
+## The Global Exception Info
+
+When an exception is raised but not rescued, Ruby stores it in global variables:
+
+| Variable | Content |
+|----------|---------|
+| `$!` | The last exception object |
+| `$@` | The backtrace of the last exception |
+
+```ruby
+begin
+  1 / 0
+rescue
+  puts $!.class   # ZeroDivisionError
+  puts $!.message # "divided by 0"
+end
+```
+
+These are available inside rescue blocks but using the block-local variable
+(`rescue => e`) is clearer.
+
+## Exception Methods
+
+Every exception object has these useful methods:
+
+```ruby
+begin
+  1 / 0
+rescue => e
+  e.class       # ZeroDivisionError
+  e.message     # "divided by 0"
+  e.backtrace   # Array of stack frames (strings)
+  e.full_message # Formatted message + backtrace
+  e.cause       # The exception that caused this one (for nested exceptions)
+end
+```
+
+## Best Practices
+
+| Do | Don't |
+|----|-------|
+| Rescue specific exception classes | Rescue `Exception` |
+| Order rescue clauses from most specific to most general | Use exceptions for normal control flow |
+| Use `ensure` for cleanup (files, locks) | Rescue a method's entire body by default |
+| Raise custom exceptions from your domain | Use inline rescue in complex code |
+| Document what exceptions your method raises | Swallow exceptions silently |
+
+```ruby
+# Good
+def find_user(id)
+  raise ArgumentError, "ID must be positive" unless id.positive?
+  User.find(id)
+rescue ActiveRecord::RecordNotFound => e
+  Rails.logger.warn("User lookup failed: #{e.message}")
+  nil
+end
+
+# Bad
+def find_user(id)
+  User.find(id)
+rescue => e
+  nil
 end
 ```

@@ -4,9 +4,53 @@ sidebar_position: 3
 
 # Metaprogramming
 
-Metaprogramming means writing code that writes code. Ruby excels at this.
+Metaprogramming means **writing code that writes code** — defining methods,
+classes, and behaviour dynamically at runtime. Ruby makes this exceptionally
+easy because of its open classes, dynamic dispatch, and powerful reflection
+APIs.
 
-## Dynamic Methods
+:::caution
+Metaprogramming is powerful but can make code harder to read, debug, and
+refactor. Use it when it **simplifies** the code (Rails, RSpec, etc.), not just
+because you can.
+:::
+
+## Dynamic Dispatch with send
+
+`send` lets you call a method by name (as a Symbol or String):
+
+```ruby
+obj = "hello"
+
+obj.send(:upcase)       # => "HELLO"
+obj.send(:reverse)      # => "olleh"
+obj.send(:[], 0)        # => "h" — calls the [] method
+
+# Dynamic method names
+method_name = :upcase
+obj.send(method_name)   # => "HELLO"
+```
+
+`public_send` is like `send` but only calls public methods (respecting access
+modifiers):
+
+```ruby
+obj.public_send(:upcase)   # Works
+obj.send(:private_method)  # Works (bypasses private)
+obj.public_send(:private_method)  # NoMethodError
+```
+
+### respond_to? — check before calling
+
+```ruby
+obj.respond_to?(:upcase)  # => true
+obj.respond_to?(:fly)     # => false
+```
+
+## define_method — Creating Methods Dynamically
+
+Instead of typing out many similar methods, generate them with
+`define_method`:
 
 ```ruby
 class User
@@ -24,7 +68,59 @@ class User
 end
 ```
 
-## Method Missing
+This creates `name`, `name=`, `email`, `email=`, `age`, `age=` methods at
+runtime — identical to hand-writing them.
+
+`define_method` takes a block, which acts as the method body. The block
+captures the surrounding scope (closure), so `attr` is available inside.
+
+## Accessing Variables Dynamically
+
+```ruby
+obj = "hello"
+
+# Instance variables
+obj.instance_variable_get(:@foo)      # Get @foo
+obj.instance_variable_set(:@foo, 42)  # Set @foo
+obj.instance_variables                 # => [:@foo]
+
+# Class variables
+MyClass.class_variable_get(:@@count)
+MyClass.class_variable_set(:@@count, 10)
+
+# Constants
+Math.const_get(:PI)        # => 3.141592...
+Math.const_set(:TAU, 2 * Math::PI)
+
+# Methods
+obj.method(:upcase).call   # Get Method object and call it
+obj.methods                # List all methods
+obj.private_methods        # List private methods
+```
+
+## define_singleton_method — Methods on a Single Object
+
+Add a method to a specific instance (not the whole class):
+
+```ruby
+obj = "hello"
+
+obj.define_singleton_method(:shout) do
+  upcase + "!"
+end
+
+obj.shout  # => "HELLO!"
+"world".shout  # NoMethodError — only obj has it
+```
+
+This is how Ruby implements per-object behaviour. Every object has a hidden
+**singleton class** (also called eigenclass) that sits between the object and
+its actual class in the method lookup chain.
+
+## method_missing — Handling Unknown Messages
+
+When you call a method that doesn't exist, Ruby calls `method_missing` on the
+receiver:
 
 ```ruby
 class DynamicProxy
@@ -36,7 +132,7 @@ class DynamicProxy
     if @target.respond_to?(name)
       @target.send(name, *args, &block)
     else
-      super
+      super  # Let the default raise NoMethodError
     end
   end
 
@@ -44,12 +140,354 @@ class DynamicProxy
     @target.respond_to?(name) || super
   end
 end
+
+proxy = DynamicProxy.new([1, 2, 3])
+proxy.length   # => 3
+proxy.reverse  # => [3, 2, 1]
 ```
 
-## Send
+:::caution
+Always override `respond_to_missing?` when overriding `method_missing`.
+Otherwise, `respond_to?` returns false for the dynamically handled methods.
+:::
+
+### Real-world: ActiveRecord dynamic finders
+
+Rails' ActiveRecord uses `method_missing` to implement `find_by_name`,
+`find_by_email`, etc. — you never have to define them:
+
+```ruby
+User.find_by_name("Alice")    # No find_by_name method exists!
+# method_missing translates this to:
+# User.where(name: "Alice").first
+```
+
+### Real-world: OpenStruct
+
+```ruby
+require "ostruct"
+
+person = OpenStruct.new
+person.name = "Alice"   # No name= method — method_missing handles it
+person.name              # => "Alice"
+```
+
+## const_missing — Dynamic Constant Resolution
+
+```ruby
+class Module
+  def const_missing(name)
+    if name == :PI
+      Math.const_get(:PI)
+    else
+      super
+    end
+  end
+end
+
+puts PI  # => 3.141592... (auto-resolved from Math)
+```
+
+## Hooks — Code That Fires on Events
+
+Ruby calls special callback methods when classes, modules, or methods are
+defined:
+
+### included / extended / prepended
+
+```ruby
+module Tracking
+  def self.included(base)
+    puts "#{base} included me!"
+    base.extend(ClassMethods)
+  end
+
+  def self.extended(base)
+    puts "#{base} extended me!"
+  end
+
+  def self.prepended(base)
+    puts "#{base} prepended me!"
+  end
+
+  module ClassMethods
+    def track_instances
+      puts "Tracking instances of #{self}"
+    end
+  end
+end
+
+class User
+  include Tracking
+end
+
+User.track_instances  # Inherited via extend
+```
+
+### method_added / method_removed / method_undefined
+
+```ruby
+class Watcher
+  def self.method_added(name)
+    puts "Method added: #{name}"
+  end
+
+  def self.method_removed(name)
+    puts "Method removed: #{name}"
+  end
+
+  def hello; end     # => "Method added: hello"
+  remove_method(:hello)  # => "Method removed: hello"
+end
+```
+
+### inherited
+
+```ruby
+class Parent
+  def self.inherited(subclass)
+    puts "#{subclass} inherits from #{self}"
+  end
+end
+
+class Child < Parent; end  # => "Child inherits from Parent"
+```
+
+## Singleton Class
+
+Every object has an invisible singleton class (eigenclass) that stores methods
+unique to that object:
 
 ```ruby
 obj = "hello"
-obj.send(:upcase)        # => "HELLO"
-obj.send(:reverse)       # => "olleh"
+
+# Access the singleton class
+singleton = class << obj
+  self
+end
+
+# Define methods on it
+class << obj
+  def shout
+    upcase + "!"
+  end
+end
+
+obj.shout  # => "HELLO!"
 ```
+
+The `class << obj` syntax opens the singleton class. This is also how `class
+methods` work in Ruby — they are singleton methods on the class object itself:
+
+```ruby
+class MyClass
+  class << self
+    def class_method
+      "I'm a class method"
+    end
+  end
+end
+
+MyClass.class_method  # => "I'm a class method"
+```
+
+## Eval Family
+
+### instance_eval — Evaluate in Object Context
+
+`instance_eval` runs a block in the context of an object, changing `self`:
+
+```ruby
+obj = "hello"
+
+obj.instance_eval do
+  upcase        # self is now obj
+  @internal = 42
+end
+
+obj.instance_variable_get(:@internal)  # => 42
+```
+
+This is how `attr_accessor` and `define_method` work internally, and how
+DSLs like RSpec provide their block-level contexts:
+
+```ruby
+RSpec.describe "MyClass" do        # instance_eval on the example group
+  it "works" do                    # instance_eval on the example
+    expect(1 + 1).to eq(2)
+  end
+end
+```
+
+### class_eval — Modify a Class at Runtime
+
+`class_eval` (aliased as `module_eval`) reopens a class/module and evaluates
+code inside it — like reopening the class definition:
+
+```ruby
+class User; end  # Originally empty
+
+User.class_eval do
+  def hello
+    "Hello!"
+  end
+
+  attr_accessor :name
+end
+
+User.new.hello       # => "Hello!"
+User.new.name = "Alice"
+```
+
+### instance_exec / class_exec
+
+Like `instance_eval`/`class_eval` but pass arguments to the block:
+
+```ruby
+def define_attr(obj, name, value)
+  obj.instance_exec(name, value) do |n, v|
+    instance_variable_set("@#{n}", v)
+  end
+end
+```
+
+### Kernel#eval — Evaluate a String as Code
+
+```ruby
+code = "2 + 2"
+eval(code)  # => 4
+
+# In a binding context
+def get_binding
+  x = 10
+  binding
+end
+
+eval("x * 2", get_binding)  # => 20
+```
+
+:::danger
+`eval` with a string is extremely dangerous if the string comes from an
+untrusted source — it can execute arbitrary Ruby code. Avoid it unless
+absolutely necessary, and never use it with user input.
+:::
+
+## alias_method — Copying Method Names
+
+```ruby
+class User
+  def full_name
+    "#{first_name} #{last_name}"
+  end
+
+  alias_method :name, :full_name
+  alias :display_name :full_name  # Kernel#alias (works without commas)
+end
+```
+
+## Removing Methods
+
+```ruby
+class Parent
+  def greet
+    "Hello"
+  end
+end
+
+class Child < Parent
+  remove_method :greet     # Removes from Child, Parent#greet still accessible
+  undef_method :greet      # Removes from Child AND prevents inheritance
+end
+
+Parent.new.greet  # => "Hello"
+Child.new.greet   # remove_method: "Hello" | undef_method: NoMethodError
+```
+
+## Method Objects
+
+You can get a method as an object and pass it around:
+
+```ruby
+m = "hello".method(:upcase)   # => #<Method: String#upcase>
+m.call                         # => "HELLO"
+m.arity                        # => 0
+m.owner                        # => String
+
+# Unbound methods — detach and rebind
+unbound = String.instance_method(:upcase)
+unbound.bind("world").call     # => "WORLD"
+```
+
+## Building a DSL
+
+Metaprogramming is often used to build clean DSLs (Domain-Specific Languages):
+
+```ruby
+class Router
+  attr_reader :routes
+
+  def initialize
+    @routes = []
+  end
+
+  def get(path, &handler)
+    @routes << { method: "GET", path: path, handler: handler }
+  end
+
+  def post(path, &handler)
+    @routes << { method: "POST", path: path, handler: handler }
+  end
+
+  # method_missing for HTTP methods not explicitly defined
+  def method_missing(name, *args, &block)
+    @routes << { method: name.to_s.upcase, path: args.first, handler: block }
+  end
+
+  def respond_to_missing?(name, include_private = false)
+    true
+  end
+end
+
+router = Router.new
+router.get "/hello" do
+  "Hello World"
+end
+
+router.put "/update" do
+  "Updated"
+end
+```
+
+## The Method Lookup Path
+
+Understanding how Ruby finds a method is essential for metaprogramming:
+
+```
+obj.method
+  └─ 1. obj's singleton class (eigenclass)
+  └─ 2. obj's class (e.g., MyClass)
+  └─ 3. Included modules (last included = checked first)
+  └─ 4. Prepend modules
+  └─ 5. Superclass
+  └─ 6. Superclass's included/prepended modules
+  └─ 7. ...up to BasicObject
+  └─ 8. method_missing
+```
+
+```ruby
+MyClass.ancestors  # => [MyClass, IncludedModule, Object, Kernel, BasicObject]
+```
+
+## When NOT to Use Metaprogramming
+
+| Use it when... | Don't use it when... |
+|----------------|----------------------|
+| It removes significant boilerplate | The logic can be expressed clearly without it |
+| You're building a library/DSL for others | It's a one-off in application code |
+| The dynamic behaviour is well-tested | You're just showing off |
+| The API is stable and documented | A plain method/class would be clearer |
+
+Metaprogramming should make the code **simpler** for the caller, even if the
+implementation is complex. Rails, RSpec, ActiveRecord, and Sinatra all follow
+this principle — their internals are heavy metaprogramming, but the user-facing
+code is clean and declarative.

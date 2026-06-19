@@ -4,56 +4,272 @@ sidebar_position: 1
 
 # Blocks, Procs, and Lambdas
 
-Blocks are chunks of code you can pass to methods. Procs and lambdas are blocks
-stored as objects.
+Ruby is built around the concept of **closures** — executable chunks of code that
+capture the surrounding scope. There are three flavours: blocks, procs, and
+lambdas. Understanding the differences is essential for writing idiomatic Ruby.
 
 ## Blocks
 
+A block is a chunk of code between `do`/`end` or curly braces `{}`. It is **not
+an object** — you cannot assign it to a variable or pass it to another method
+after receiving it, unless you capture it as a proc first.
+
+### Syntax
+
 ```ruby
-# Do-end block
+# Do/end block (convention: multi-line)
 [1, 2, 3].each do |n|
   puts n * 2
 end
 
-# Brace block
+# Brace block (convention: single-line)
 [1, 2, 3].map { |n| n * 2 }
+```
 
-# Yielding to a block
-def execute
-  puts "Before block"
+### Yield
+
+The method receiving a block calls it with the `yield` keyword. If the block is
+optional, guard with `block_given?`.
+
+```ruby
+def with_timing
+  start = Time.now
   yield if block_given?
-  puts "After block"
+  puts "Took #{Time.now - start}s"
 end
 
-execute { puts "Inside block" }
+with_timing { sleep 0.1 }
+# => Took 0.100123s
+```
+
+You can pass arguments to the block via `yield`:
+
+```ruby
+def each_item
+  yield "Apple"
+  yield "Banana"
+  yield "Cherry"
+end
+
+each_item { |item| puts "Got #{item}" }
+```
+
+### Block return value
+
+A block implicitly returns its last expression back to the method:
+
+```ruby
+def with_discount(price)
+  discounted = yield price
+  "Final: $#{discounted}"
+end
+
+puts with_discount(100) { |p| p * 0.9 }   # => "Final: $90.0"
+```
+
+Use `next` inside a block to exit the block early (returning a value):
+
+```ruby
+result = [1, 2, 3].map do |n|
+  next n * 10 if n.even?
+  n
+end
+# => [1, 20, 3]
 ```
 
 ## Procs
 
-```ruby
-my_proc = Proc.new { |name| puts "Hello, #{name}!" }
-my_proc.call("Ruby")
+A Proc is a **block turned into an object**. You can store it, pass it around,
+and call it later.
 
-# Proc from a block
-def make_proc(&block)
-  block
+### Creating a Proc
+
+```ruby
+# With Proc.new
+greet = Proc.new { |name| "Hello, #{name}!" }
+
+# With Kernel#proc (identical to Proc.new)
+greet = proc { |name| "Hello, #{name}!" }
+```
+
+### Calling a Proc
+
+```ruby
+greet.call("Ruby")        # => "Hello, Ruby!"
+greet["Ruby"]             # => "Hello, Ruby!"
+greet.("Ruby")            # => "Hello, Ruby!"
+greet.yield("Ruby")       # => "Hello, Ruby!"
+```
+
+### Capturing a block as a Proc
+
+Use the `&` ampersand prefix on the last parameter to capture the passed block
+into a Proc variable:
+
+```ruby
+def greeter(&block)
+  # block is now a Proc
+  block.call("World")
 end
 
-greeter = make_proc { |name| "Hi #{name}" }
-greeter.call("Alice")  # => "Hi Alice"
+greeter { |name| "Hi #{name}" }   # => "Hi World"
 ```
+
+### Converting a Proc back to a block
+
+Use `&` when calling a method to turn a proc into a block argument:
+
+```ruby
+my_proc = proc { |n| n * 3 }
+[1, 2, 3].map(&my_proc)  # => [3, 6, 9]
+```
+
+This is where the `Symbol#to_proc` pattern comes from:
+
+```ruby
+["a", "b", "c"].map(&:upcase)  # => ["A", "B", "C"]
+
+# Equivalent to
+["a", "b", "c"].map { |s| s.upcase }
+```
+
+Ruby calls `:upcase.to_proc` internally, which returns a Proc that sends
+`:upcase` to the argument.
 
 ## Lambdas
 
-```ruby
-my_lambda = lambda { |name| puts "Hello, #{name}!" }
-# or
-my_lambda = ->(name) { puts "Hello, #{name}!" }
+A lambda is also a Proc object, but with **stricter semantics**. Think of it as
+a method-like closure.
 
-my_lambda.call("Ruby")
+```ruby
+# Lambda literal (stabby arrow) — preferred
+square = ->(x) { x * x }
+
+# Lambda keyword
+square = lambda { |x| x * x }
+
+square.call(5)  # => 25
+```
+
+### Stabby arrow syntax variations
+
+```ruby
+# No arguments
+hello = -> { "Hello" }
+
+# Multiple arguments
+add = ->(a, b) { a + b }
+
+# Default arguments
+greet = ->(name = "World") { "Hello #{name}" }
+
+# Splat arguments
+log = ->(*items) { items.join(", ") }
 ```
 
 ## Key Differences
 
-- **Lambdas** check argument count; **Procs** don't
-- **Lambdas** return from themselves; **Procs** return from the enclosing method
+| Behaviour | Block | Proc | Lambda |
+|-----------|-------|------|--------|
+| Is an object? | No | Yes | Yes |
+| `return` behaviour | Returns from enclosing method | Returns from enclosing method | Returns from lambda itself |
+| Arity (argument count) | Context-dependent | Lenient | Strict |
+| Can be passed around? | Via `&` capture | Yes | Yes |
+
+### 1. Arity — argument strictness
+
+Procs are **lenient**: extra args become `nil`, missing args are ignored.
+
+```ruby
+p = proc { |a, b| [a, b] }
+p.call(1)          # => [1, nil]
+p.call(1, 2, 3)    # => [1, 2] — third arg ignored
+```
+
+Lambdas are **strict**:
+
+```ruby
+l = ->(a, b) { [a, b] }
+l.call(1, 2)       # => [1, 2]
+l.call(1)           # ArgumentError: wrong number of arguments
+l.call(1, 2, 3)    # ArgumentError: wrong number of arguments
+```
+
+### 2. Return behaviour
+
+This is the most important difference and a common source of bugs.
+
+```ruby
+def test_proc
+  p = Proc.new { return "Proc returned!" }
+  p.call
+  "This never runs"
+end
+
+def test_lambda
+  l = -> { return "Lambda returned!" }
+  l.call
+  "This runs after lambda"
+end
+
+test_proc   # => "Proc returned!"
+test_lambda # => "This runs after lambda"
+```
+
+In a **proc**, `return` tries to return from the enclosing method — it will
+raise a `LocalJumpError` if there's no enclosing method. In a **lambda**,
+`return` returns from the lambda itself, and execution continues in the caller.
+
+### 3. Closure behaviour
+
+Both procs and lambdas are closures — they capture the surrounding local
+variables:
+
+```ruby
+def counter
+  count = 0
+  proc { count += 1 }
+end
+
+c = counter
+c.call  # => 1
+c.call  # => 2
+c.call  # => 3
+```
+
+### Use cases
+
+| Task | Best choice |
+|------|-------------|
+| Passing a short block to `each`/`map` | Inline block |
+| Passing the same logic to multiple methods | Proc (stored in variable) |
+| Storing a callback to call later | Proc |
+| Defining a callable that behaves like a method | Lambda |
+| Creating a method-like closure with strict arity | Lambda |
+
+### Common pattern: `&` with `Symbol#to_proc`
+
+```ruby
+# Transform all elements by calling the same method
+numbers = ["1", "2", "3"]
+numbers.map(&:to_i)           # => [1, 2, 3]
+
+# Works with any method name
+users.map(&:full_name)
+orders.select(&:paid?)
+```
+
+### Common pattern: blocks for resource management
+
+```ruby
+def open_file(path)
+  file = File.open(path)
+  yield file
+ensure
+  file.close
+end
+
+open_file("data.txt") do |f|
+  puts f.read
+end
+```
