@@ -1,0 +1,48 @@
+---
+sidebar_position: 1
+---
+
+# Getting Started with Rails
+
+Ruby on Rails is a full-stack web framework following the Model-View-Controller
+(MVC) pattern.
+
+## Installation
+
+```bash
+gem install rails
+rails --version
+```
+
+## Creating a New App
+
+```bash
+rails new my_app
+cd my_app
+rails server
+```
+
+## Rails Philosophy
+
+- **Convention over Configuration** - Rails makes assumptions about what you
+  want, so you write less code
+- **Don't Repeat Yourself (DRY)** - Every piece of knowledge has a single
+  representation
+- **Opinionated Software** - Rails has a preferred way of doing things
+
+## Directory Structure
+
+```
+my_app/
+├── app/
+│   ├── controllers/
+│   ├── models/
+│   ├── views/
+│   └── assets/
+├── config/
+│   ├── routes.rb
+│   └── database.yml
+├── db/
+│   └── migrate/
+└── Gemfile
+```

@@ -1,0 +1,71 @@
+---
+sidebar_position: 2
+---
+
+# Modules and Mixins
+
+Modules are collections of methods and constants. They cannot be instantiated
+but can be mixed into classes.
+
+## Defining a Module
+
+```ruby
+module Greetable
+  def greet
+    "Hello!"
+  end
+end
+```
+
+## Including Modules (Mixins)
+
+```ruby
+class Person
+  include Greetable  # adds as instance methods
+end
+
+Person.new.greet  # => "Hello!"
+```
+
+## Extending Modules
+
+```ruby
+class Person
+  extend Greetable  # adds as class methods
+end
+
+Person.greet  # => "Hello!"
+```
+
+## Namespacing
+
+```ruby
+module Admin
+  class User
+    # Admin::User - avoids collision with a top-level User class
+  end
+end
+```
+
+## Enumerable Module
+
+The `Enumerable` module is one of the most powerful mixins in Ruby. Include it
+and define `#each` to get `#map`, `#select`, `#reduce`, and many more.
+
+```ruby
+class ShoppingCart
+  include Enumerable
+
+  def initialize
+    @items = []
+  end
+
+  def each(&block)
+    @items.each(&block)
+  end
+
+  def add(item)
+    @items << item
+  end
+end
+```

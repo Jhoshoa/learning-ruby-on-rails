@@ -1,0 +1,70 @@
+---
+sidebar_position: 3
+---
+
+# Inheritance
+
+Ruby supports single inheritance. A class can inherit from one parent class.
+
+## Basic Inheritance
+
+```ruby
+class Animal
+  def speak
+    "Some sound"
+  end
+end
+
+class Dog < Animal
+  def speak
+    "Woof!"
+  end
+end
+
+class Cat < Animal
+  def speak
+    "Meow!"
+  end
+end
+
+Dog.new.speak  # => "Woof!"
+Cat.new.speak  # => "Meow!"
+```
+
+## Super
+
+Use `super` to call the parent class's method.
+
+```ruby
+class Animal
+  def initialize(name)
+    @name = name
+  end
+end
+
+class Dog < Animal
+  def initialize(name, breed)
+    super(name)  # calls Animal's initialize
+    @breed = breed
+  end
+end
+```
+
+## Method Lookup Path
+
+When you call a method, Ruby follows the method lookup path:
+
+1. The object's class
+2. Included modules (last included is searched first)
+3. The parent class
+4. Parent class's included modules
+5. Continue up the hierarchy
+
+```ruby
+class Dog < Animal
+  include Greetable
+  include Swimmable
+end
+
+Dog.ancestors  # => [Dog, Swimmable, Greetable, Animal, Object, Kernel, BasicObject]
+```

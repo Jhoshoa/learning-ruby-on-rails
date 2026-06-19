@@ -1,0 +1,65 @@
+---
+sidebar_position: 2
+---
+
+# Error Handling
+
+Ruby uses exceptions for error handling, with a `begin/rescue/end` structure.
+
+## Basic Rescue
+
+```ruby
+begin
+  result = 10 / 0
+rescue ZeroDivisionError => e
+  puts "Error: #{e.message}"
+end
+```
+
+## Multiple Rescue Clauses
+
+```ruby
+begin
+  risky_operation
+rescue ZeroDivisionError => e
+  puts "Division error: #{e.message}"
+rescue TypeError => e
+  puts "Type error: #{e.message}"
+rescue => e  # catches any StandardError
+  puts "Unknown error: #{e.message}"
+end
+```
+
+## Ensure (Always Runs)
+
+```ruby
+file = File.open("data.txt")
+begin
+  file.read
+rescue => e
+  puts "Error: #{e.message}"
+ensure
+  file.close
+end
+```
+
+## Raising Exceptions
+
+```ruby
+def divide(a, b)
+  raise ArgumentError, "Cannot divide by zero" if b == 0
+  a / b
+end
+
+raise "Something went wrong"  # RuntimeError by default
+```
+
+## Custom Exceptions
+
+```ruby
+class AuthenticationError < StandardError; end
+
+def login(username, password)
+  raise AuthenticationError, "Invalid credentials" unless valid?
+end
+```

@@ -1,0 +1,52 @@
+---
+sidebar_position: 2
+---
+
+# RSpec
+
+RSpec is the most widely used Ruby testing framework with a readable DSL.
+
+## Installation
+
+```ruby
+# Gemfile
+group :test do
+  gem "rspec-rails"
+end
+```
+
+```bash
+bundle install
+rails generate rspec:install
+```
+
+## Basic Structure
+
+```ruby
+# spec/models/user_spec.rb
+RSpec.describe User, type: :model do
+  describe "validations" do
+    it "is valid with valid attributes" do
+      user = User.new(name: "Alice", email: "alice@example.com")
+      expect(user).to be_valid
+    end
+
+    it "is invalid without a name" do
+      user = User.new(name: nil)
+      expect(user).not_to be_valid
+      expect(user.errors[:name]).to include("can't be blank")
+    end
+  end
+end
+```
+
+## Matchers
+
+```ruby
+expect(actual).to eq(expected)
+expect(actual).to be_truthy
+expect(actual).to be_nil
+expect { code }.to change(Model, :count).by(1)
+expect { code }.to raise_error(SomeError)
+expect(response).to have_http_status(:success)
+```

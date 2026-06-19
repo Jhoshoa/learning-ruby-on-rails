@@ -1,0 +1,50 @@
+---
+sidebar_position: 1
+---
+
+# Code Style
+
+Ruby style is guided by community conventions, summarized in the Ruby Style
+Guide.
+
+## Key Conventions
+
+- **Indentation**: 2 spaces (no tabs)
+- **Naming**: `snake_case` for methods, variables, and files
+- **Class names**: `CamelCase`
+- **File names**: Match the class name (`user.rb` contains `User`)
+- **Line length**: maximum 80-120 characters
+
+## Idiomatic Ruby
+
+```ruby
+# Bad
+if user != nil
+  puts user.name
+end
+
+# Good
+puts user.name if user
+```
+
+```ruby
+# Bad
+x = 5
+if x > 0
+  return true
+else
+  return false
+end
+
+# Good
+x > 0
+```
+
+## Linting
+
+Use `rubocop` to enforce consistent style:
+
+```bash
+gem install rubocop
+rubocop
+```

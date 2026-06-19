@@ -1,0 +1,54 @@
+---
+sidebar_position: 2
+---
+
+# MVC Architecture
+
+The Model-View-Controller pattern separates an application into three components.
+
+## Model
+
+Models represent data and business logic. They handle database interactions.
+
+```ruby
+# app/models/user.rb
+class User < ApplicationRecord
+  validates :name, presence: true
+  validates :email, uniqueness: true
+
+  has_many :posts
+end
+```
+
+## View
+
+Views present data to the user. Rails uses embedded Ruby (ERB) templates.
+
+```erb
+<!-- app/views/users/show.html.erb -->
+<h1><%= @user.name %></h1>
+<p>Email: <%= @user.email %></p>
+```
+
+## Controller
+
+Controllers process requests, interact with models, and render views.
+
+```ruby
+# app/controllers/users_controller.rb
+class UsersController < ApplicationController
+  def show
+    @user = User.find(params[:id])
+  end
+end
+```
+
+## Routing
+
+```ruby
+# config/routes.rb
+Rails.application.routes.draw do
+  resources :users
+  root "home#index"
+end
+```

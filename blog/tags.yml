@@ -1,0 +1,14 @@
+ruby:
+  label: Ruby
+  permalink: /ruby
+  description: Ruby programming language posts
+
+rails:
+  label: Rails
+  permalink: /rails
+  description: Ruby on Rails framework posts
+
+learning:
+  label: Learning
+  permalink: /learning
+  description: Learning journey posts

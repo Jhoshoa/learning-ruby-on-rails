@@ -1,0 +1,57 @@
+---
+sidebar_position: 2
+---
+
+# Gems and Bundler
+
+Ruby libraries are distributed as **gems**. Bundler manages gem dependencies.
+
+## What is a Gem?
+
+A gem is a packaged Ruby application or library. RubyGems is the package manager.
+
+```bash
+gem install rails
+gem list
+gem search rspec
+```
+
+## Gemfile
+
+The `Gemfile` declares your project's dependencies:
+
+```ruby
+source "https://rubygems.org"
+
+ruby "3.3.0"
+
+gem "rails", "~> 7.1"
+gem "pg"  # PostgreSQL adapter
+
+group :development, :test do
+  gem "rspec-rails"
+  gem "pry"
+end
+
+group :production do
+  gem "puma"
+end
+```
+
+## Bundler Commands
+
+```bash
+bundle install         # Install all gems
+bundle update          # Update all gems
+bundle exec rspec      # Run rspec in the bundle context
+bundle outdated        # Show outdated gems
+```
+
+## Gem Versioning
+
+```
+~> 2.5    # >= 2.5 and < 3.0
+~> 2.5.1  # >= 2.5.1 and < 2.6
+>= 1.0    # >= 1.0
+>= 1.0, < 2.0  # version range
+```

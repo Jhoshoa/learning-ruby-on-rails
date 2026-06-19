@@ -1,0 +1,59 @@
+---
+sidebar_position: 1
+---
+
+# Blocks, Procs, and Lambdas
+
+Blocks are chunks of code you can pass to methods. Procs and lambdas are blocks
+stored as objects.
+
+## Blocks
+
+```ruby
+# Do-end block
+[1, 2, 3].each do |n|
+  puts n * 2
+end
+
+# Brace block
+[1, 2, 3].map { |n| n * 2 }
+
+# Yielding to a block
+def execute
+  puts "Before block"
+  yield if block_given?
+  puts "After block"
+end
+
+execute { puts "Inside block" }
+```
+
+## Procs
+
+```ruby
+my_proc = Proc.new { |name| puts "Hello, #{name}!" }
+my_proc.call("Ruby")
+
+# Proc from a block
+def make_proc(&block)
+  block
+end
+
+greeter = make_proc { |name| "Hi #{name}" }
+greeter.call("Alice")  # => "Hi Alice"
+```
+
+## Lambdas
+
+```ruby
+my_lambda = lambda { |name| puts "Hello, #{name}!" }
+# or
+my_lambda = ->(name) { puts "Hello, #{name}!" }
+
+my_lambda.call("Ruby")
+```
+
+## Key Differences
+
+- **Lambdas** check argument count; **Procs** don't
+- **Lambdas** return from themselves; **Procs** return from the enclosing method

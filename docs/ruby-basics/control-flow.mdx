@@ -1,0 +1,76 @@
+---
+sidebar_position: 3
+---
+
+# Control Flow
+
+Ruby provides clean, readable syntax for conditional logic and loops.
+
+## Conditionals
+
+```ruby
+age = 18
+
+if age >= 18
+  puts "You can vote"
+elsif age >= 16
+  puts "You can drive"
+else
+  puts "You are young"
+end
+
+# One-liner modifier
+puts "Adult" if age >= 18
+
+# Unless (opposite of if)
+puts "Minor" unless age >= 18
+```
+
+## Case Expressions
+
+```ruby
+status = :active
+
+case status
+when :active
+  puts "User is active"
+when :inactive
+  puts "User is inactive"
+when :banned
+  puts "User is banned"
+else
+  puts "Unknown status"
+end
+```
+
+## Loops
+
+```ruby
+# While loop
+count = 0
+while count < 5
+  puts count
+  count += 1
+end
+
+# Until loop
+count = 0
+until count == 5
+  puts count
+  count += 1
+end
+
+# Each iterator (most idiomatic)
+(1..5).each do |n|
+  puts n
+end
+
+# Times
+3.times { puts "Ruby!" }
+
+# Loop with break
+loop do
+  puts "Running..."
+  break if rand > 0.8
+end
+```

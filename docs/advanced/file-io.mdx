@@ -1,0 +1,45 @@
+---
+sidebar_position: 4
+---
+
+# File I/O
+
+Ruby provides straightforward file handling capabilities.
+
+## Reading Files
+
+```ruby
+# Read entire file
+content = File.read("example.txt")
+
+# Read line by line
+File.foreach("example.txt") do |line|
+  puts line
+end
+
+# With block (auto-closes)
+File.open("example.txt", "r") do |file|
+  file.each_line { |line| puts line }
+end
+```
+
+## Writing Files
+
+```ruby
+# Overwrite
+File.write("output.txt", "Hello, Ruby!")
+
+# Append
+File.open("output.txt", "a") do |file|
+  file.puts "New line"
+end
+```
+
+## File Information
+
+```ruby
+File.exist?("example.txt")  # => true/false
+File.size("example.txt")    # bytes
+File.directory?("docs")     # => true/false
+File.extname("photo.jpg")   # => ".jpg"
+```

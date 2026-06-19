@@ -1,0 +1,34 @@
+---
+sidebar_position: 1
+---
+
+# Variables
+
+Ruby variables hold references to objects. They are dynamically typed, meaning
+you don't need to declare a type explicitly.
+
+## Local Variables
+
+```ruby
+name = "Ruby"
+age = 30
+pi = 3.14
+is_fun = true
+```
+
+## Constants
+
+Constants begin with a capital letter. Ruby warns if you try to change them.
+
+```ruby
+PI = 3.14159
+LANGUAGE = "Ruby"
+```
+
+## Variable Naming Conventions
+
+- **Local variables**: `snake_case` (`user_name`, `total_count`)
+- **Constants**: `SCREAMING_SNAKE_CASE` (`MAX_USERS`, `DEFAULT_TIMEOUT`)
+- **Instance variables**: `@name` (belong to an object)
+- **Class variables**: `@@count` (shared across all instances)
+- **Global variables**: `$global` (avoid when possible)

@@ -1,0 +1,40 @@
+---
+sidebar_position: 1
+---
+
+# Introduction to Testing
+
+Ruby has a strong testing culture. Testing is a first-class concern.
+
+## Why Test?
+
+- Catch bugs early
+- Document expected behavior
+- Enable confident refactoring
+- Design better interfaces
+
+## Testing Frameworks
+
+- **Minitest** - Ruby's built-in testing library
+- **RSpec** - The most popular testing framework (see next page)
+
+## Test-Driven Development (TDD)
+
+The Red-Green-Refactor cycle:
+
+1. **Red** - Write a failing test
+2. **Green** - Write minimal code to pass
+3. **Refactor** - Improve the code while keeping tests green
+
+## Minitest Example
+
+```ruby
+require "minitest/autorun"
+
+class CalculatorTest < Minitest::Test
+  def test_addition
+    result = 2 + 2
+    assert_equal 4, result
+  end
+end
+```

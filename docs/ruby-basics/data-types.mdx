@@ -1,0 +1,73 @@
+---
+sidebar_position: 2
+---
+
+# Data Types
+
+Everything in Ruby is an object, including numbers and strings.
+
+## Numbers
+
+```ruby
+# Integer
+42
+-10
+
+# Float
+3.14
+-0.5
+
+# Arithmetic
+sum = 5 + 3
+difference = 10 - 4
+product = 6 * 7
+quotient = 20 / 5
+power = 2 ** 10
+modulus = 17 % 5
+```
+
+## Strings
+
+```ruby
+single_quoted = 'Hello'
+double_quoted = "World"
+
+# Interpolation
+name = "Ruby"
+greeting = "Hello, #{name}!"
+
+# Common methods
+"hello".upcase    # => "HELLO"
+"HELLO".downcase  # => "hello"
+"hello".capitalize # => "Hello"
+"hello".length    # => 5
+```
+
+## Symbols
+
+Symbols are immutable, reusable identifiers preceded by a colon.
+
+```ruby
+:name
+:status
+:active
+
+# Symbols as hash keys
+user = {name: "Alice", age: 30}
+user[:name]  # => "Alice"
+```
+
+## Booleans and Nil
+
+```ruby
+true
+false
+nil  # represents "nothing" or "no value"
+```
+
+## Type Checking
+
+```ruby
+"hello".is_a?(String)  # => true
+42.is_a?(Integer)      # => true
+```

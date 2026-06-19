@@ -1,0 +1,83 @@
+---
+sidebar_position: 4
+---
+
+# Methods
+
+Methods define behavior in Ruby. They are defined with `def` and end with `end`.
+
+## Defining Methods
+
+```ruby
+def greet(name)
+  "Hello, #{name}!"
+end
+
+puts greet("Ruby")  # => "Hello, Ruby!"
+```
+
+## Implicit Return
+
+Ruby returns the last evaluated expression automatically.
+
+```ruby
+def add(a, b)
+  a + b  # no need for explicit return
+end
+```
+
+## Default Arguments
+
+```ruby
+def greet(name = "World")
+  "Hello, #{name}!"
+end
+
+greet         # => "Hello, World!"
+greet("Ruby") # => "Hello, Ruby!"
+```
+
+## Keyword Arguments
+
+```ruby
+def create_user(name:, age:, admin: false)
+  {name: name, age: age, admin: admin}
+end
+
+create_user(name: "Alice", age: 30)
+```
+
+## Splat Arguments
+
+```ruby
+def sum(*numbers)
+  numbers.sum
+end
+
+sum(1, 2, 3, 4)  # => 10
+```
+
+## Predicate Methods
+
+Methods ending with `?` return boolean values by convention.
+
+```ruby
+def even?(number)
+  number % 2 == 0
+end
+
+even?(4)  # => true
+```
+
+## Bang Methods
+
+Methods ending with `!` modify the object in place.
+
+```ruby
+text = "hello"
+text.upcase   # => "HELLO" (new string)
+text          # => "hello" (unchanged)
+
+text.upcase!  # => "HELLO" (modified in place)
+text          # => "HELLO" (changed)
+```

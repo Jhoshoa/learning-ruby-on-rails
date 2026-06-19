@@ -1,0 +1,8 @@
+learner:
+  name: Ruby Learner
+  title: Ruby on Rails Student
+  url: https://github.com/learner
+  image_url: https://github.com/identicons/learner.png
+  page: true
+  socials:
+    github: learner

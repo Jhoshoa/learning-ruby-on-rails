@@ -1,0 +1,55 @@
+---
+sidebar_position: 3
+---
+
+# Metaprogramming
+
+Metaprogramming means writing code that writes code. Ruby excels at this.
+
+## Dynamic Methods
+
+```ruby
+class User
+  ATTRIBUTES = [:name, :email, :age]
+
+  ATTRIBUTES.each do |attr|
+    define_method(attr) do
+      instance_variable_get("@#{attr}")
+    end
+
+    define_method("#{attr}=") do |value|
+      instance_variable_set("@#{attr}", value)
+    end
+  end
+end
+```
+
+## Method Missing
+
+```ruby
+class DynamicProxy
+  def initialize(target)
+    @target = target
+  end
+
+  def method_missing(name, *args, &block)
+    if @target.respond_to?(name)
+      @target.send(name, *args, &block)
+    else
+      super
+    end
+  end
+
+  def respond_to_missing?(name, include_private = false)
+    @target.respond_to?(name) || super
+  end
+end
+```
+
+## Send
+
+```ruby
+obj = "hello"
+obj.send(:upcase)        # => "HELLO"
+obj.send(:reverse)       # => "olleh"
+```

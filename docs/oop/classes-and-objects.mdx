@@ -1,0 +1,70 @@
+---
+sidebar_position: 1
+---
+
+# Classes and Objects
+
+Ruby is a pure object-oriented language. Everything is an object, and objects are
+instances of classes.
+
+## Defining a Class
+
+```ruby
+class Person
+  def initialize(name, age)
+    @name = name
+    @age = age
+  end
+
+  def introduce
+    "Hi, I'm #{@name} and I'm #{@age} years old."
+  end
+end
+
+alice = Person.new("Alice", 30)
+puts alice.introduce
+```
+
+## Accessors
+
+```ruby
+class Person
+  attr_reader :name    # read-only
+  attr_writer :age     # write-only
+  attr_accessor :email # read-write
+
+  def initialize(name, age, email)
+    @name = name
+    @age = age
+    @email = email
+  end
+end
+```
+
+## Class Methods
+
+```ruby
+class Person
+  def self.species
+    "Homo sapiens"
+  end
+end
+
+Person.species  # => "Homo sapiens"
+```
+
+## Instance vs Class Variables
+
+```ruby
+class Person
+  @@count = 0  # class variable, shared across all instances
+
+  def initialize
+    @@count += 1
+  end
+
+  def self.count
+    @@count
+  end
+end
+```

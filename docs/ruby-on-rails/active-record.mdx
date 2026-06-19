@@ -1,0 +1,70 @@
+---
+sidebar_position: 3
+---
+
+# Active Record
+
+Active Record is the ORM (Object-Relational Mapping) layer in Rails.
+
+## Migrations
+
+```bash
+rails generate migration CreateUsers name:string email:string
+rails db:migrate
+```
+
+```ruby
+class CreateUsers < ActiveRecord::Migration[7.0]
+  def change
+    create_table :users do |t|
+      t.string :name
+      t.string :email
+      t.timestamps
+    end
+  end
+end
+```
+
+## CRUD Operations
+
+```ruby
+# Create
+user = User.new(name: "Alice", email: "alice@example.com")
+user.save
+
+# Read
+User.find(1)
+User.where(name: "Alice")
+User.find_by(email: "alice@example.com")
+
+# Update
+user.update(name: "Bob")
+
+# Delete
+user.destroy
+```
+
+## Associations
+
+```ruby
+class User < ApplicationRecord
+  has_many :posts, dependent: :destroy
+  has_one :profile
+  has_and_belongs_to_many :roles
+end
+
+class Post < ApplicationRecord
+  belongs_to :user
+  has_many :comments
+end
+```
+
+## Validations
+
+```ruby
+class User < ApplicationRecord
+  validates :name, presence: true, length: { maximum: 50 }
+  validates :email, presence: true, uniqueness: true
+  validates :age, numericality: { greater_than: 0 }
+end
+```

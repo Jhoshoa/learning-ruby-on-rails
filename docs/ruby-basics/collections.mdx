@@ -1,0 +1,63 @@
+---
+sidebar_position: 5
+---
+
+# Collections
+
+Ruby provides powerful built-in collection classes: Arrays and Hashes.
+
+## Arrays
+
+```ruby
+# Creating arrays
+fruits = ["apple", "banana", "cherry"]
+numbers = [1, 2, 3, 4, 5]
+mixed = [1, "two", :three, 4.0]
+
+# Accessing elements
+fruits[0]      # => "apple"
+fruits.first   # => "apple"
+fruits.last    # => "cherry"
+
+# Adding elements
+fruits << "date"       # append
+fruits.push("elderberry")
+fruits.unshift("apricot")  # prepend
+
+# Removing elements
+fruits.pop          # remove last
+fruits.shift        # remove first
+fruits.delete("banana")
+
+# Iteration
+fruits.each { |fruit| puts fruit }
+
+# Transformation
+numbers.map { |n| n * 2 }      # => [2, 4, 6, 8, 10]
+numbers.select { |n| n.even? } # => [2, 4]
+numbers.reject { |n| n.even? } # => [1, 3, 5]
+```
+
+## Hashes
+
+```ruby
+# Creating hashes
+user = {"name" => "Alice", "age" => 30}
+user = {name: "Alice", age: 30}  # symbol keys (preferred)
+
+# Accessing values
+user[:name]  # => "Alice"
+
+# Adding/updating
+user[:email] = "alice@example.com"
+
+# Iteration
+user.each do |key, value|
+  puts "#{key}: #{value}"
+end
+
+# Default values
+counts = Hash.new(0)
+counts[:apple] += 1   # no error, defaults to 0
+counts[:apple]        # => 1
+```
