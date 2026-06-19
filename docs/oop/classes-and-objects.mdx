@@ -86,28 +86,55 @@ class Person
 end
 ```
 
-Use these shortcuts instead:
+Instead, use these built-in **methods** (they are **not keywords** — they are
+class methods that dynamically generate getter/setter methods for you at
+runtime). The symbol you pass can be **any word** — the method name
+(`_reader`/`_writer`/`_accessor`) determines what gets generated, not the
+symbol itself:
 
 ```ruby
 class Person
-  attr_reader :name     # generates getter (read-only)
-  attr_writer :age      # generates setter (write-only)
-  attr_accessor :email  # generates both getter and setter (read-write)
-
-  def initialize(name, age, email)
-    @name = name
-    @age = age
-    @email = email
-  end
+  attr_reader :name       # generates: def name;  @name; end
+  attr_writer :age        # generates: def age=(val);  @age = val; end
+  attr_accessor :email    # generates BOTH of the above patterns for @email
 end
+```
 
-person = Person.new("Alice", 30, "alice@example.com")
-person.name            # => "Alice"  (reader)
-person.email = "new@example.com"  # (writer from attr_accessor)
-person.age = 31        # (writer from attr_writer)
+Same symbol `:name` behaves differently depending on which method you pass it
+to:
+
+| Call | Generates |
+|------|-----------|
+| `attr_reader :name` | `def name` → reads `@name` |
+| `attr_writer :name` | `def name=(val)` → writes `@name` |
+| `attr_accessor :name` | Both of the above |
+
+The `_reader`, `_writer`, and `_accessor` suffixes are just naming conventions
+for three separate methods — they are not part of the symbol itself.
+
+```ruby
+class Person
+  attr_reader :name, :age     # generates reader for both
+  attr_writer :age            # generates writer for age only
+  attr_accessor :email        # generates both reader and writer for email
+end
+```
+
+Because they are methods, you can even call them dynamically:
+
+```ruby
+class Person
+  [:name, :age, :email].each { |attr| attr_accessor attr }
+end
 ```
 
 ## Instance Methods vs Class Methods
+
+**Instance methods** belong to objects (instances). They operate on the
+object's state (instance variables). You call them on an instance.
+
+**Class methods** belong to the class itself. They don't need an instance and
+can't access instance variables. You call them directly on the class.
 
 ```ruby
 class Dog
@@ -120,12 +147,31 @@ class Dog
   def self.species
     "Canis familiaris"
   end
+
+  # Another way to define a class method
+  class << self
+    def description
+      "Dogs are domesticated mammals"
+    end
+  end
 end
 
 fido = Dog.new
-fido.bark          # => "Woof!"
-Dog.species        # => "Canis familiaris"
+fido.bark           # => "Woof!"
+Dog.species         # => "Canis familiaris"
+Dog.description     # => "Dogs are domesticated mammals"
+Dog.bark            # => NoMethodError (class doesn't have instance methods)
+fido.species        # => NoMethodError (instance doesn't have class methods)
 ```
+
+### When to use each
+
+| | Instance Method | Class Method |
+|--|----------------|--------------|
+| Needs a specific object? | Yes | No |
+| Can access `@instance_vars`? | Yes | No |
+| Example | `user.full_name` | `User.count` |
+| Typical use | Object behavior | Utility, lookup, factory |
 
 ## Class Variables (`@@`)
 
@@ -153,25 +199,95 @@ Dog.total  # => 3
 
 ## The `self` Keyword
 
-Inside a class, `self` refers to different things depending on context:
+`self` is a special variable that always points to the **current object** — the
+receiver of the current method call. What it refers to changes based on where
+you are:
+
+| Location | `self` refers to |
+|----------|-----------------|
+| Inside an instance method | The instance (object) |
+| Inside a class method | The class itself |
+| Inside the class body (outside any method) | The class itself |
+| At the top level (outside any class) | `main` (a special object) |
 
 ```ruby
+puts self  # => main (top-level context)
+
 class Dog
-  # Inside a method body → the instance (fido, bella, etc.)
+  puts self  # => Dog (class body)
+
   def bark
-    self  # => the Dog instance
+    self  # => the Dog instance (fido, bella, etc.)
   end
 
-  # Inside the class definition but outside any method → the class itself
   def self.species
     self  # => Dog (the class)
   end
 end
 ```
 
+### Why use `self`?
+
+Explicit `self` is needed when Ruby would otherwise think you're creating a
+local variable:
+
+```ruby
+class Person
+  attr_accessor :name
+
+  def introduce
+    # Without self: Ruby creates a local variable `name`
+    name = "Local #{name}"
+
+    # With self: calls the method `name=` (setter)
+    self.name = "Overwritten"
+  end
+end
+```
+
+Setter methods (`name=`) **always** require `self` because otherwise Ruby sees
+`name = value` as a local variable assignment:
+
+```ruby
+class Person
+  attr_accessor :name
+
+  def change_name(new_name)
+    name = new_name   # local variable, NOT calling the setter
+    self.name = new_name  # calls the setter
+  end
+end
+```
+
+For regular (non-setter) methods, `self` is optional — Ruby assumes the
+current object:
+
+```ruby
+class Person
+  def name
+    @name
+  end
+
+  def formal_name
+    "Mr. #{name}"    # self.name is implied — Ruby calls the method
+    "Mr. #{self.name}"  # same thing, explicit
+  end
+end
+```
+
 ## Converting to String (`to_s`)
 
-Ruby calls `to_s` automatically when an object needs to be displayed as text:
+Every class in Ruby automatically has a `to_s` method inherited from `Object`.
+By default it returns the class name and object ID:
+
+```ruby
+class Dog; end
+
+fido = Dog.new
+puts fido  # => "#<Dog:0x00007f8b1a8b3d48>"
+```
+
+You can **override** it to provide a meaningful representation:
 
 ```ruby
 class Dog
@@ -185,31 +301,82 @@ class Dog
 end
 
 fido = Dog.new("Fido")
-puts fido  # => "Dog: Fido"  (calls to_s automatically)
+puts fido  # => "Dog: Fido"  (your custom to_s)
+
+# to_s is called automatically in string interpolation too:
+"A dog named #{fido}"  # => "A dog named Dog: Fido"
 ```
 
 ## Comparing Objects
 
+Ruby provides three levels of comparison. Understanding the difference is
+critical:
+
+| Method | Compares | Default behavior | When to override |
+|--------|----------|-----------------|-----------------|
+| `==` | **Value** (equality) | Checks if same object (`equal?`) | Most common — compare by attributes |
+| `eql?` | **Value + Type** (hash equality) | Same as `==` | Used by Hashes for key matching |
+| `equal?` | **Identity** (same object) | Checks object_id | Never override |
+| `===` | **Case equality** | Same as `==` | Used by `case/when` |
+
 ```ruby
 class Dog
-  attr_reader :name
+  attr_reader :name, :breed
 
+  def initialize(name, breed)
+    @name = name
+    @breed = breed
+  end
+
+  # Value equality — are these dogs the same?
+  def ==(other)
+    return false unless other.is_a?(Dog)
+    name == other.name && breed == other.breed
+  end
+
+  alias eql? ==  # make eql? behave the same as ==
+end
+
+fido1 = Dog.new("Fido", "Golden")
+fido2 = Dog.new("Fido", "Golden")
+fido3 = fido1
+
+fido1 == fido2   # => true  (same values — our custom ==)
+fido1 == fido3   # => true  (same values AND same object)
+fido1.equal?(fido2)  # => false  (different objects in memory)
+fido1.equal?(fido3)  # => true  (same object)
+```
+
+Without a custom `==`, Ruby falls back to `equal?` behavior, so two objects
+with identical attributes would be considered "not equal":
+
+```ruby
+class Dog
   def initialize(name)
     @name = name
   end
-
-  def ==(other)
-    name == other.name
-  end
+  # no custom == defined
 end
 
-Dog.new("Fido") == Dog.new("Fido")  # => true (our custom ==)
-Dog.new("Fido").equal?(Dog.new("Fido"))  # => false (same object? no)
+Dog.new("Fido") == Dog.new("Fido")  # => false (default: same object?)
 ```
 
 ## Public and Private Methods
 
-By default all methods are public. Use `private` to hide internal details:
+Ruby has three access modifiers, but they work differently than in languages
+like C# or Java:
+
+| Modifier | C# / Java | Ruby |
+|----------|-----------|------|
+| `public` | Default. Anyone can call it. | Default. Anyone can call it. |
+| `private` | Only the class itself. | Only the class itself — **but with a catch** (see below). |
+| `protected` | Only the class and subclasses. | Same as `private`, but allows access between same-class instances. |
+| `internal` | Only within the same assembly. | **Does not exist** in Ruby. |
+
+### Private
+
+By default all methods are `public`. Use `private` to hide internal details.
+Once `private` is declared, all subsequent methods are private.
 
 ```ruby
 class BankAccount
@@ -225,7 +392,7 @@ class BankAccount
     end
   end
 
-  private
+  private  # everything below is private
 
   def sufficient_funds?(amount)
     @balance >= amount
@@ -233,6 +400,86 @@ class BankAccount
 end
 
 account = BankAccount.new(100)
-account.withdraw(30)          # => 70
-account.sufficient_funds?(50) # => NoMethodError (private method)
+account.withdraw(30)           # => 70
+account.sufficient_funds?(50)  # => NoMethodError (private method)
+```
+
+### The private gotcha
+
+In Ruby, `private` means the method can only be called **without** a receiver
+— you cannot call `self.method_name`. This is different from C#/Java where
+`self.method_name` works fine:
+
+```ruby
+class BankAccount
+  private
+
+  def secret
+    "hidden"
+  end
+
+  def try_to_call
+    secret          # => "hidden" (OK)
+    self.secret     # => NoMethodError (private — can't use self.)
+  end
+end
+```
+
+Private methods **can** be called by subclasses (unlike C# where private is
+truly private to the class):
+
+```ruby
+class SavingsAccount < BankAccount
+  def check
+    secret  # => "hidden"  (works! Private doesn't prevent subclass access)
+  end
+end
+```
+
+### Protected
+
+`protected` works like `private` (callable without a receiver), but **allows
+calling the method on another instance of the same class**:
+
+```ruby
+class Person
+  attr_reader :age
+
+  def initialize(name, age)
+    @name = name
+    @age = age
+  end
+
+  def older_than?(other)
+    age > other.age  # calling protected method on another instance
+  end
+
+  protected
+
+  def age
+    @age
+  end
+end
+
+alice = Person.new("Alice", 30)
+bob = Person.new("Bob", 25)
+
+alice.older_than?(bob)  # => true  (protected allows same-class access)
+alice.age                # => NoMethodError (protected — no external access)
+```
+
+### Marking individual methods inline
+
+Instead of a block modifier, you can mark specific methods inline:
+
+```ruby
+class BankAccount
+  def withdraw(amount)
+    sufficient_funds?(amount)
+  end
+
+  private def sufficient_funds?(amount)
+    @balance >= amount
+  end
+end
 ```
