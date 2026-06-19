@@ -1,5 +1,5 @@
 ---
-sidebar_position: 1
+sidebar_position: 2
 ---
 
 # Variables
@@ -23,12 +23,28 @@ Constants begin with a capital letter. Ruby warns if you try to change them.
 ```ruby
 PI = 3.14159
 LANGUAGE = "Ruby"
+MAX_USERS = 100
 ```
 
-## Variable Naming Conventions
+## Naming Conventions
 
-- **Local variables**: `snake_case` (`user_name`, `total_count`)
-- **Constants**: `SCREAMING_SNAKE_CASE` (`MAX_USERS`, `DEFAULT_TIMEOUT`)
-- **Instance variables**: `@name` (belong to an object)
-- **Class variables**: `@@count` (shared across all instances)
-- **Global variables**: `$global` (avoid when possible)
+Rubyists are strict about naming conventions:
+
+| Convention | Style | Example |
+|-----------|-------|---------|
+| Local variables | `snake_case` | `user_name`, `total_count` |
+| Methods | `snake_case` | `calculate_total`, `find_user` |
+| Classes & Modules | `PascalCase` | `UserAccount`, `PaymentProcessor` |
+| Constants | `UPPER_SNAKE_CASE` | `MAX_USERS`, `DEFAULT_TIMEOUT` |
+| Instance variables | `@name` | `@name`, `@age` (belongs to an object) |
+| Class variables | `@@count` | `@@count`, `@@instances` (shared across all instances) |
+| Global variables | `$global` | `$debug` (avoid when possible) |
+| Files | `snake_case.rb` | `user_account.rb`, `payment_processor.rb` |
+
+```ruby
+# Good naming examples
+first_name = "Alice"
+calculate_total_price
+class ShoppingCart; end
+MAX_RETRIES = 3
+```

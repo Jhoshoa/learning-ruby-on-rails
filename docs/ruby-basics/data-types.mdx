@@ -1,10 +1,28 @@
 ---
-sidebar_position: 2
+sidebar_position: 3
 ---
 
 # Data Types
 
-Everything in Ruby is an object, including numbers and strings.
+Everything in Ruby is an **object** — including numbers, strings, and even
+`true`, `false`, and `nil`. There are no "primitive" types.
+
+```ruby
+5.class         # => Integer
+3.14.class      # => Float
+"hello".class   # => String
+true.class      # => TrueClass
+false.class     # => FalseClass
+nil.class       # => NilClass
+```
+
+Because everything is an object, every value has methods:
+
+```ruby
+5.times { print "Hi " }    # => Hi Hi Hi Hi Hi
+-10.abs                     # => 10
+"hello".upcase              # => "HELLO"
+```
 
 ## Numbers
 
@@ -28,33 +46,46 @@ modulus = 17 % 5
 
 ## Strings
 
+Text wrapped in single `' '` or double `" "` quotes. Double quotes allow
+**interpolation** — inserting variables into strings.
+
 ```ruby
 single_quoted = 'Hello'
 double_quoted = "World"
 
-# Interpolation
+# Interpolation (double quotes only)
 name = "Ruby"
-greeting = "Hello, #{name}!"
+greeting = "Hello, #{name}!"      # => "Hello, Ruby!"
 
 # Common methods
-"hello".upcase    # => "HELLO"
-"HELLO".downcase  # => "hello"
-"hello".capitalize # => "Hello"
-"hello".length    # => 5
+"hello".upcase                    # => "HELLO"
+"HELLO".downcase                  # => "hello"
+"hello".capitalize                # => "Hello"
+"hello".length                    # => 5
+"hello".reverse                   # => "olleh"
 ```
 
 ## Symbols
 
-Symbols are immutable, reusable identifiers preceded by a colon.
+Symbols are **unique to Ruby**. A symbol looks like `:name`. Think of it as a
+lightweight, immutable string. You will see them everywhere in Ruby, especially
+as keys in hashes.
 
 ```ruby
 :name
 :status
 :active
 
-# Symbols as hash keys
-user = {name: "Alice", age: 30}
+# Symbols as hash keys (this is the modern Ruby style)
+user = {name: "Alice", age: 30, role: :admin}
 user[:name]  # => "Alice"
+```
+
+Unlike strings, two identical symbols are the same object in memory:
+
+```ruby
+"name".object_id == "name".object_id  # => false (different objects)
+:name.object_id == :name.object_id    # => true (same object)
 ```
 
 ## Booleans and Nil
@@ -62,7 +93,7 @@ user[:name]  # => "Alice"
 ```ruby
 true
 false
-nil  # represents "nothing" or "no value"
+nil  # Ruby's version of "nothing" or "no value"
 ```
 
 ## Type Checking

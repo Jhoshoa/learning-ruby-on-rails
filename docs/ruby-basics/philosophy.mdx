@@ -1,0 +1,99 @@
+---
+sidebar_position: 1
+---
+
+# The Core Philosophy
+
+Ruby was designed by **Yukihiro "Matz" Matsumoto** with a focus on developer
+happiness. Its philosophy shapes every aspect of the language.
+
+## Everything is an Object
+
+In many languages, numbers and booleans are "primitive" data types. In Ruby,
+**everything is an object** — including the number 5.
+
+```ruby
+5.times { print "Hello!" }
+# => Hello!Hello!Hello!Hello!Hello!
+
+# Even basic types have methods
+5.class         # => Integer
+"hello".class   # => String
+true.class      # => TrueClass
+nil.class       # => NilClass
+```
+
+## Principle of Least Surprise
+
+Ruby tries to behave exactly how you expect it to. If you think a method should
+be named `.length`, it probably is.
+
+```ruby
+"hello".length    # => 5
+[1, 2, 3].length  # => 3
+```
+
+The API is consistent and intuitive across different types.
+
+## Flexibility
+
+Ruby doesn't force you into one way of doing things. If you want to change how
+a built-in class works, you can (though you should do so carefully).
+
+```ruby
+# This is called "open classes" — you can reopen and modify any class
+class String
+  def shout
+    upcase + "!"
+  end
+end
+
+"hello".shout  # => "HELLO!"
+```
+
+## Syntax & Style
+
+Ruby code reads almost like English.
+
+- **No semicolons** — unlike Java, C++, or JavaScript, you don't need `;` at the
+  end of lines
+- **No braces for blocks** — instead of `{ }` to define code blocks, Ruby uses
+  the `end` keyword
+- **Readable** — Ruby prioritizes natural language constructs
+
+### Naming Conventions
+
+Rubyists are strict about naming:
+
+| Convention | Style | Examples |
+|-----------|-------|----------|
+| Variables & Methods | `snake_case` | `my_variable`, `calculate_total` |
+| Classes & Modules | `PascalCase` | `UserAccount`, `PaymentProcessor` |
+| Constants | `UPPER_SNAKE_CASE` | `MAX_USERS`, `API_KEY` |
+| Files | `snake_case.rb` | `user_account.rb` |
+
+## The Ecosystem
+
+### IRB (Interactive Ruby)
+
+Type `irb` in your terminal. It opens a live Ruby environment where you can type
+code and see results instantly — the best place to practice.
+
+```bash
+irb
+> 5 + 5
+=> 10
+> "Hello " + "World"
+=> "Hello World"
+```
+
+### Gems
+
+A **gem** is a Ruby library/package. If you need to make an HTTP request, parse
+JSON, or build a web server, there is a gem for it. Gems are managed via
+**Bundler**.
+
+### Ruby on Rails
+
+Rails is a web framework built with Ruby. It makes building websites incredibly
+fast. **Note: Learn Ruby before you learn Rails.**

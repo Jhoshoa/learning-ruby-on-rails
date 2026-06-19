@@ -1,12 +1,13 @@
 ---
-sidebar_position: 3
+sidebar_position: 4
 ---
 
 # Control Flow
 
-Ruby provides clean, readable syntax for conditional logic and loops.
+Ruby has standard `if/else` statements, but adds elegant twists like `unless`
+and implicit returns.
 
-## Conditionals
+## If / Elsif / Else
 
 ```ruby
 age = 18
@@ -18,12 +19,47 @@ elsif age >= 16
 else
   puts "You are young"
 end
+```
+
+## Unless
+
+The exact opposite of `if`. It runs the code only if the condition is **false**.
+
+```ruby
+unless user.logged_in?
+  redirect_to_login
+end
 
 # One-liner modifier
-puts "Adult" if age >= 18
-
-# Unless (opposite of if)
 puts "Minor" unless age >= 18
+```
+
+## One-liner Modifiers
+
+Ruby lets you append conditionals at the end of a single line for clean,
+readable code:
+
+```ruby
+puts "Adult" if age >= 18
+puts "Minor" unless age >= 18
+```
+
+## Implicit Returns
+
+In Ruby, you don't need to write `return` at the end of a method. Ruby
+automatically returns the result of the **last evaluated expression**.
+
+```ruby
+def add(a, b)
+  a + b  # This is automatically returned
+end
+
+def is_adult?(age)
+  age >= 18  # Returns true or false
+end
+
+add(2, 3)      # => 5
+is_adult?(20)  # => true
 ```
 
 ## Case Expressions
@@ -45,6 +81,9 @@ end
 
 ## Loops
 
+Ruby rarely uses traditional `for` loops. Instead, use iterators (see
+[Blocks & Iterators](/docs/ruby-basics/blocks-iterators)).
+
 ```ruby
 # While loop
 count = 0
@@ -58,19 +97,5 @@ count = 0
 until count == 5
   puts count
   count += 1
-end
-
-# Each iterator (most idiomatic)
-(1..5).each do |n|
-  puts n
-end
-
-# Times
-3.times { puts "Ruby!" }
-
-# Loop with break
-loop do
-  puts "Running..."
-  break if rand > 0.8
 end
 ```

@@ -1,0 +1,69 @@
+---
+sidebar_position: 7
+---
+
+# Blocks and Iterators
+
+This is the biggest hurdle for beginners coming from other languages, but it is
+**the soul of Ruby**.
+
+## What is a Block?
+
+A **block** is a chunk of code wrapped in `do...end` or `{ }`. Think of it as a
+method without a name that you can pass to another method.
+
+```ruby
+# Do-end style (multi-line)
+do |number|
+  puts number * 2
+end
+
+# Brace style (single-line)
+{ |number| puts number * 2 }
+```
+
+## Iterators: The Ruby Way
+
+Instead of traditional `for` or `while` loops, Ruby uses methods that accept
+blocks. These are called **iterators**.
+
+```ruby
+# Instead of a traditional loop, use .each
+[1, 2, 3].each do |number|
+  puts number * 2
+end
+
+# Same thing with brace syntax
+[1, 2, 3].each { |number| puts number * 2 }
+```
+
+## Common Iterators
+
+```ruby
+# .each — iterate over each element
+[1, 2, 3].each { |n| puts n }
+
+# .map — transform each element
+[1, 2, 3].map { |n| n * 10 }   # => [10, 20, 30]
+
+# .select — filter elements
+[1, 2, 3, 4, 5].select { |n| n.even? }  # => [2, 4]
+
+# .reject — opposite of select
+[1, 2, 3, 4, 5].reject { |n| n.even? }  # => [1, 3, 5]
+
+# .times — repeat N times
+3.times { puts "Ruby!" }
+
+# .each_with_index — access the index too
+colors = ["red", "green", "blue"]
+colors.each_with_index do |color, index|
+  puts "#{index}: #{color}"
+end
+```
+
+## Why This Matters
+
+You will pass blocks to methods constantly to customize how they work. This
+pattern is everywhere in Ruby — from collections to Rails controllers to
+background jobs. Mastering blocks is the key to writing idiomatic Ruby.

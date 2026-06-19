@@ -7,11 +7,13 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Ruby Basics',
       items: [
+        'ruby-basics/philosophy',
         'ruby-basics/variables',
         'ruby-basics/data-types',
         'ruby-basics/control-flow',
         'ruby-basics/methods',
         'ruby-basics/collections',
+        'ruby-basics/blocks-iterators',
       ],
     },
     {
