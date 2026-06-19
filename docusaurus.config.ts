@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'Learning Ruby on Rails',
   tagline: 'A comprehensive documentation of my Ruby programming journey',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/ruby-logo.png',
 
   future: {
     v4: true,
@@ -56,7 +56,7 @@ const config: Config = {
       title: 'Ruby on Rails',
       logo: {
         alt: 'Ruby Logo',
-        src: 'img/logo.svg',
+        src: 'img/ruby-logo.png',
       },
       items: [
         {
