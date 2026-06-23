@@ -117,6 +117,112 @@ Here is what happened when you visited that URL:
 
 This is the basic flow of every Rails app. You will learn more about each piece as we go.
 
+## Database Commands
+
+By default, `rails new my_blog` uses **SQLite** as the database. SQLite is a simple file-based database — no server to install, no configuration needed. Perfect for learning.
+
+Rails gives you commands to manage the database from the terminal:
+
+### rails db:create
+
+Creates the database. For SQLite, this just creates the database file.
+
+```bash
+rails db:create
+```
+
+You usually run this once when you start a new project. If you switch to PostgreSQL or MySQL later, this command creates the actual database on the server.
+
+### rails db:migrate
+
+Runs pending migrations. Migrations are files that describe changes to your database (creating tables, adding columns, etc.).
+
+```bash
+rails db:migrate
+```
+
+This is the command you will run most often. Every time you generate a model or add a migration, run this to apply the changes.
+
+### rails db:rollback
+
+Undoes the last migration. Useful if you made a mistake.
+
+```bash
+rails db:rollback
+```
+
+You can rollback multiple steps:
+
+```bash
+rails db:rollback STEP=3  # Undo the last 3 migrations
+```
+
+### rails db:drop
+
+Deletes the entire database. Be careful — this cannot be undone.
+
+```bash
+rails db:drop
+```
+
+### rails db:reset
+
+Drops the database, creates it again, and runs all migrations from scratch.
+
+```bash
+rails db:reset
+```
+
+This is useful when you want to start fresh. It is the same as running `db:drop`, `db:create`, and `db:migrate` in sequence.
+
+### rails db:seed
+
+Runs the `db/seeds.rb` file to populate the database with initial data (like sample posts or admin users).
+
+```bash
+rails db:seed
+```
+
+You write the data in `db/seeds.rb`:
+
+```ruby
+# db/seeds.rb
+Post.create(title: "Welcome", body: "This is my first post!")
+Post.create(title: "Hello Rails", body: "Learning Rails is fun.")
+```
+
+### rails db:setup
+
+Runs `db:create`, `db:schema:load` (loads the schema without running migrations), and `db:seed` in one command.
+
+```bash
+rails db:setup
+```
+
+### Chaining Commands
+
+You can chain these together:
+
+```bash
+rails db:drop db:create db:migrate db:seed
+```
+
+This drops everything, recreates the database, runs all migrations, and fills it with seed data. Handy when you want a clean restart.
+
+### A Note About SQLite
+
+Since `rails new` uses SQLite by default, your database is just a file on disk (`db/development.sqlite3`). You can inspect it with any SQLite browser. On Windows, install [DB Browser for SQLite](https://sqlitebrowser.org) to see your data visually.
+
+If you want to use PostgreSQL or MySQL instead:
+
+```bash
+rails new my_blog --database=postgresql
+# or
+rails new my_blog --database=mysql
+```
+
+But for learning, stick with SQLite. It requires zero setup.
+
 ## What's Next?
 
 Now that you have Rails running and saw your first page, it is time to learn the core ideas that make Rails tick. Head over to the **MVC Architecture** section next.
