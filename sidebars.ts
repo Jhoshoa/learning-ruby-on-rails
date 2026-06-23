@@ -48,6 +48,7 @@ const sidebars: SidebarsConfig = {
         'ruby-on-rails/active-record',
         'ruby-on-rails/associations-and-validations',
         'ruby-on-rails/best-practices',
+        'ruby-on-rails/common-tasks',
       ],
     },
     {

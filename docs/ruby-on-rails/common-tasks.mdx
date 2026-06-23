@@ -1,0 +1,580 @@
+---
+sidebar_position: 9
+---
+
+# Common Tasks in Rails
+
+When you start building a real app, you will need to do the same things over and over. Here are the most common tasks, all using our blog example with `Post`, `User`, and `Comment`.
+
+## Pagination
+
+**The problem:** If you have 100 blog posts, you do not want to show all of them on one page. You want to show 10 at a time with "Next" and "Previous" links.
+
+**The solution:** Use the `pagy` gem. It is fast and simple.
+
+Add to your `Gemfile`:
+
+```ruby
+gem "pagy", "~> 9.0"
+```
+
+Then run `bundle install`.
+
+In your controller:
+
+```ruby
+# app/controllers/posts_controller.rb
+class PostsController < ApplicationController
+  # Include Pagy helpers
+  include Pagy::Backend
+
+  def index
+    @pagy, @posts = pagy(Post.published.recent, limit: 10)
+  end
+end
+```
+
+In your view:
+
+```erb
+<!-- app/views/posts/index.html.erb -->
+<h1>All Posts</h1>
+
+<%= render @posts %>
+
+<!-- Pagination links -->
+<%== pagy_nav(@pagy) %>
+```
+
+That is it. `pagy` adds the "Previous", "Next", and page number links automatically.
+
+## Authentication (Sign Up / Log In)
+
+**The problem:** You need users to create accounts and log in to write posts.
+
+**The solution:** Use the `devise` gem. It handles everything — sign up, log in, password reset, remember me.
+
+Add to your `Gemfile`:
+
+```ruby
+gem "devise"
+```
+
+Run:
+
+```bash
+bundle install
+rails generate devise:install
+rails generate devise User
+rails db:migrate
+```
+
+This creates a `User` model with email, password, and all the authentication logic built in.
+
+To protect a page so only logged-in users can access it:
+
+```ruby
+# app/controllers/posts_controller.rb
+class PostsController < ApplicationController
+  before_action :authenticate_user!, except: [:index, :show]
+
+  # Only logged-in users can create, edit, or delete posts
+  # Anyone can view posts (index and show)
+end
+```
+
+To get the currently logged-in user anywhere in your app:
+
+```ruby
+current_user  # Returns the user object or nil
+user_signed_in?  # Returns true or false
+```
+
+To link the post to the user who wrote it:
+
+```ruby
+# In your posts controller
+def create
+  @post = current_user.posts.new(post_params)
+  # This sets @post.user_id automatically
+end
+```
+
+And in the `User` model:
+
+```ruby
+# app/models/user.rb
+class User < ApplicationRecord
+  devise :database_authenticatable, :registerable
+
+  has_many :posts, dependent: :destroy
+  has_many :comments, dependent: :destroy
+end
+```
+
+In your views, show different things for logged-in and guest users:
+
+```erb
+<% if user_signed_in? %>
+  Welcome back, <%= current_user.name %>!
+  <%= link_to "New Post", new_post_path %>
+  <%= link_to "Log Out", destroy_user_session_path, data: { turbo_method: :delete } %>
+<% else %>
+  <%= link_to "Log In", new_user_session_path %>
+  <%= link_to "Sign Up", new_user_registration_path %>
+<% end %>
+```
+
+The links like `new_user_session_path` and `destroy_user_session_path` are created by Devise automatically.
+
+## Authorization (Who Can Do What)
+
+**The problem:** Anyone can type `/posts/1/edit` in the URL and edit someone else's post. You need to stop that.
+
+**The solution:** Use `pundit` to define who can do what.
+
+Add to your `Gemfile`:
+
+```ruby
+gem "pundit"
+```
+
+Run `bundle install`. Then include it in your controller:
+
+```ruby
+# app/controllers/application_controller.rb
+class ApplicationController < ActionController::Base
+  include Pundit::Authorization
+end
+```
+
+Create a policy file:
+
+```bash
+mkdir app/policies
+```
+
+```ruby
+# app/policies/post_policy.rb
+class PostPolicy
+  attr_reader :user, :post
+
+  def initialize(user, post)
+    @user = user
+    @post = post
+  end
+
+  def update?
+    user == post.user
+  end
+
+  def edit?
+    user == post.user
+  end
+
+  def destroy?
+    user == post.user
+  end
+end
+```
+
+Now in your controller, authorize before acting:
+
+```ruby
+# app/controllers/posts_controller.rb
+class PostsController < ApplicationController
+  before_action :find_post, only: [:show, :edit, :update, :destroy]
+
+  def edit
+    authorize @post  # Will raise an error if not the author
+  end
+
+  def update
+    authorize @post
+    if @post.update(post_params)
+      redirect_to @post
+    else
+      render :edit
+    end
+  end
+
+  def destroy
+    authorize @post
+    @post.destroy
+    redirect_to posts_path
+  end
+end
+```
+
+If someone who is not the author tries to edit, they get a "not authorized" error page. You can customize this later.
+
+## Friendly URLs
+
+**The problem:** `/posts/3` is ugly. You want `/posts/my-first-post` instead.
+
+**The solution:** Use the `friendly_id` gem.
+
+Add to your `Gemfile`:
+
+```ruby
+gem "friendly_id"
+```
+
+Run:
+
+```bash
+bundle install
+rails generate friendly_id
+rails generate migration AddSlugToPosts slug:string:uniq
+rails db:migrate
+```
+
+In your model:
+
+```ruby
+# app/models/post.rb
+class Post < ApplicationRecord
+  extend FriendlyId
+  friendly_id :title, use: :slugged
+end
+```
+
+Now when you create a post titled "My First Post", the URL will be `/posts/my-first-post` instead of `/posts/3`.
+
+In your controller, change `find` to `friendly.find`:
+
+```ruby
+# app/controllers/posts_controller.rb
+class PostsController < ApplicationController
+  def show
+    @post = Post.friendly.find(params[:id])
+  end
+end
+```
+
+Links in your views do not need to change. `link_to post.title, post` will automatically use the friendly slug.
+
+## Image Uploads
+
+**The problem:** You want to add a cover image to each blog post.
+
+**The solution:** Rails has something built-in called **Active Storage**. No extra gems needed.
+
+Run:
+
+```bash
+rails active_storage:install
+rails db:migrate
+```
+
+In your model:
+
+```ruby
+# app/models/post.rb
+class Post < ApplicationRecord
+  has_one_attached :cover_image
+end
+```
+
+In your form:
+
+```erb
+<!-- app/views/posts/_form.html.erb -->
+<%= form_with model: @post do |form| %>
+  <!-- other fields -->
+
+  <div>
+    <%= form.label :cover_image %>
+    <%= form.file_field :cover_image %>
+  </div>
+
+  <%= form.submit %>
+<% end %>
+```
+
+In your controller, add `cover_image` to the permitted params:
+
+```ruby
+def post_params
+  params.require(:post).permit(:title, :body, :cover_image)
+end
+```
+
+In your view to show the image:
+
+```erb
+<!-- app/views/posts/show.html.erb -->
+<% if @post.cover_image.attached? %>
+  <%= image_tag @post.cover_image %>
+<% end %>
+```
+
+Active Storage stores images locally in development. When you deploy, you can switch to cloud storage like AWS S3.
+
+## Search
+
+**The problem:** You want visitors to be able to search your blog posts.
+
+**The solution:** A simple search using Active Record. For a small blog, this is enough.
+
+In your model:
+
+```ruby
+# app/models/post.rb
+class Post < ApplicationRecord
+  def self.search(query)
+    where("title LIKE ? OR body LIKE ?", "%#{query}%", "%#{query}%")
+  end
+end
+```
+
+In your controller:
+
+```ruby
+# app/controllers/posts_controller.rb
+class PostsController < ApplicationController
+  def index
+    if params[:query].present?
+      @posts = Post.search(params[:query])
+    else
+      @posts = Post.all
+    end
+  end
+end
+```
+
+In your view:
+
+```erb
+<!-- app/views/posts/index.html.erb -->
+<%= form_with url: posts_path, method: :get do |form| %>
+  <%= form.text_field :query, placeholder: "Search posts..." %>
+  <%= form.submit "Search" %>
+<% end %>
+
+<%= render @posts %>
+```
+
+When you need more advanced search (typo tolerance, full-text search), look into `pg_search` (for PostgreSQL) or Meilisearch.
+
+## Flash Messages
+
+**The problem:** After creating a post, you want to show "Post was created successfully" at the top of the page.
+
+**The solution:** Rails has flash messages built in.
+
+In your controller:
+
+```ruby
+# app/controllers/posts_controller.rb
+class PostsController < ApplicationController
+  def create
+    @post = current_user.posts.new(post_params)
+
+    if @post.save
+      redirect_to @post, notice: "Post was created successfully."
+    else
+      render :new
+    end
+  end
+
+  def update
+    if @post.update(post_params)
+      redirect_to @post, notice: "Post was updated."
+    else
+      render :edit
+    end
+  end
+
+  def destroy
+    @post.destroy
+    redirect_to posts_path, notice: "Post was deleted."
+  end
+end
+```
+
+In your layout to show the message:
+
+```erb
+<!-- app/views/layouts/application.html.erb -->
+<% if notice.present? %>
+  <div class="alert alert-success">
+    <%= notice %>
+  </div>
+<% end %>
+
+<% if alert.present? %>
+  <div class="alert alert-danger">
+    <%= alert %>
+  </div>
+<% end %>
+```
+
+`notice` is for success messages (green). `alert` is for errors (red). Devise uses `alert` for things like "Invalid email or password."
+
+## Comments
+
+**The problem:** You want readers to comment on your posts.
+
+**The solution:** Create a `Comment` model nested under posts.
+
+Generate the model:
+
+```bash
+rails generate model Comment body:text post:references user:references
+rails db:migrate
+```
+
+Set up the associations (already done if you followed earlier sections):
+
+```ruby
+# app/models/post.rb
+class Post < ApplicationRecord
+  has_many :comments, dependent: :destroy
+end
+
+# app/models/comment.rb
+class Comment < ApplicationRecord
+  belongs_to :post
+  belongs_to :user
+end
+```
+
+Set up nested routes:
+
+```ruby
+# config/routes.rb
+Rails.application.routes.draw do
+  resources :posts do
+    resources :comments, only: [:create, :destroy]
+  end
+end
+```
+
+Create a comments controller:
+
+```ruby
+# app/controllers/comments_controller.rb
+class CommentsController < ApplicationController
+  before_action :authenticate_user!
+
+  def create
+    @post = Post.find(params[:post_id])
+    @comment = @post.comments.new(comment_params)
+    @comment.user = current_user
+
+    if @comment.save
+      redirect_to @post, notice: "Comment added."
+    else
+      redirect_to @post, alert: "Could not add comment."
+    end
+  end
+
+  def destroy
+    @comment = Comment.find(params[:id])
+    @comment.destroy
+    redirect_to @comment.post, notice: "Comment deleted."
+  end
+
+  private
+
+  def comment_params
+    params.require(:comment).permit(:body)
+  end
+end
+```
+
+Show comments on the post page:
+
+```erb
+<!-- app/views/posts/show.html.erb -->
+<h1><%= @post.title %></h1>
+<p><%= @post.body %></p>
+
+<h2>Comments (<%= @post.comments.count %>)</h2>
+
+<% @post.comments.each do |comment| %>
+  <div class="comment">
+    <strong><%= comment.user.name %></strong> said:
+    <p><%= comment.body %></p>
+  </div>
+<% end %>
+
+<% if user_signed_in? %>
+  <%= form_with model: [@post, @post.comments.new] do |form| %>
+    <%= form.text_area :body, placeholder: "Write a comment..." %>
+    <%= form.submit "Post Comment" %>
+  <% end %>
+<% else %>
+  <p><%= link_to "Log in", new_user_session_path %> to leave a comment.</p>
+<% end %>
+```
+
+## Putting It All Together
+
+Here is a complete `PostsController` using many of these patterns together:
+
+```ruby
+# app/controllers/posts_controller.rb
+class PostsController < ApplicationController
+  include Pagy::Backend
+
+  before_action :authenticate_user!, except: [:index, :show]
+  before_action :find_post, only: [:show, :edit, :update, :destroy]
+  before_action :authorize_post, only: [:edit, :update, :destroy]
+
+  def index
+    @pagy, @posts = pagy(Post.published.recent, limit: 10)
+  end
+
+  def show
+    @comment = @post.comments.new
+  end
+
+  def new
+    @post = Post.new
+  end
+
+  def create
+    @post = current_user.posts.new(post_params)
+
+    if @post.save
+      redirect_to @post, notice: "Post was created successfully."
+    else
+      render :new
+    end
+  end
+
+  def edit
+  end
+
+  def update
+    if @post.update(post_params)
+      redirect_to @post, notice: "Post was updated."
+    else
+      render :edit
+    end
+  end
+
+  def destroy
+    @post.destroy
+    redirect_to posts_path, notice: "Post was deleted."
+  end
+
+  private
+
+  def find_post
+    @post = Post.friendly.find(params[:id])
+  end
+
+  def authorize_post
+    authorize @post
+  end
+
+  def post_params
+    params.require(:post).permit(:title, :body, :cover_image)
+  end
+end
+```
+
+This controller uses pagination, authentication, authorization, friendly URLs, image uploads, and flash messages — all working together.
