@@ -1,0 +1,112 @@
+---
+sidebar_position: 3
+---
+
+# Routing in Rails
+
+Routes are like a GPS for your web app. When someone types a URL in their browser, Rails looks at the routes to decide what to do.
+
+## The Routes File
+
+All your routes live in one file:
+
+```ruby
+# config/routes.rb
+Rails.application.routes.draw do
+  # Your routes go here
+end
+```
+
+Every time you add a new feature to your app, you will come back to this file to tell Rails how to handle it.
+
+## Resources: The Magic Word
+
+The most common way to define routes in Rails is using `resources`. Let us say you have a blog with posts:
+
+```ruby
+Rails.application.routes.draw do
+  resources :posts
+end
+```
+
+That single line creates **seven routes** automatically:
+
+| HTTP Method | URL | Controller Action | What It Does |
+|-------------|-----|-------------------|--------------|
+| GET | `/posts` | `posts#index` | Show all posts |
+| GET | `/posts/new` | `posts#new` | Show a form to create a post |
+| POST | `/posts` | `posts#create` | Save the new post to the database |
+| GET | `/posts/1` | `posts#show` | Show a single post with id 1 |
+| GET | `/posts/1/edit` | `posts#edit` | Show a form to edit post 1 |
+| PATCH | `/posts/1` | `posts#update` | Save the changes to post 1 |
+| DELETE | `/posts/1` | `posts#destroy` | Remove post 1 from the database |
+
+This is what we call **RESTful routing**. It is the standard way Rails apps are organized.
+
+## Custom Routes
+
+Sometimes you need a route that does not fit the `resources` pattern. You can add custom routes:
+
+```ruby
+Rails.application.routes.draw do
+  resources :posts do
+    # A custom route inside posts
+    get :search, on: :collection
+  end
+
+  # A regular route, not connected to a resource
+  get "about", to: "pages#about"
+end
+```
+
+This creates a route like `GET /posts/search` that goes to the `search` action in the `posts` controller.
+
+## Root Route
+
+Every app needs a homepage. You set it with `root`:
+
+```ruby
+Rails.application.routes.draw do
+  root "pages#home"
+end
+```
+
+This means when someone visits `http://localhost:3000`, Rails sends them to the `home` action in the `pages` controller.
+
+## Seeing Your Routes
+
+If you ever get confused about what routes your app has, Rails can show you:
+
+```bash
+rails routes
+```
+
+This prints a table of all routes in your app. Very useful for debugging.
+
+## Route Naming
+
+When you use `resources`, Rails gives you helper methods to use in your views and controllers:
+
+```ruby
+# These are the helpers Rails creates for you
+posts_path         # → "/posts"
+post_path(@post)   # → "/posts/1"
+new_post_path      # → "/posts/new"
+edit_post_path(@post) # → "/posts/1/edit"
+```
+
+You use these in your views to create links:
+
+```erb
+<%= link_to "All Posts", posts_path %>
+<%= link_to "Edit", edit_post_path(@post) %>
+```
+
+Use these helpers instead of writing URLs by hand. If your URL structure changes later, the helpers will update automatically.
+
+## Rules of Thumb
+
+- Start with `resources` for most things
+- Use `root` for your homepage
+- Run `rails routes` when you are lost
+- Use route helpers (`_path`) in your views, not raw URLs

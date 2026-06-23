@@ -1,0 +1,178 @@
+---
+sidebar_position: 5
+---
+
+# Views and Templates
+
+Views are what the user sees. They are HTML files with Ruby code mixed in. Rails uses a system called **ERB** (Embedded Ruby) for this.
+
+## ERB Basics
+
+ERB files end in `.html.erb`. They look like normal HTML but with special tags that let you add Ruby code:
+
+```erb
+<!-- app/views/posts/index.html.erb -->
+<h1>All Posts</h1>
+
+<% @posts.each do |post| %>
+  <h2><%= post.title %></h2>
+  <p><%= post.body.truncate(100) %></p>
+  <%= link_to "Read more", post %>
+<% end %>
+```
+
+There are two types of ERB tags:
+
+- `<% code %>` — Runs the Ruby code but does NOT show anything. Used for `if`, `each`, etc.
+- `<%= code %>` — Runs the code and SHOWS the result. Used when you want to display something.
+
+Think of `<%` as "do this" and `<%=` as "show this".
+
+## Layouts
+
+Every page in your app uses a layout. The layout is the wrapper around your content. It usually has the `<html>`, `<head>`, and `<body>` tags.
+
+```erb
+<!-- app/views/layouts/application.html.erb -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My Blog</title>
+  <%= stylesheet_link_tag "application" %>
+</head>
+<body>
+  <header>
+    <h1>My Blog</h1>
+    <nav>
+      <%= link_to "Home", root_path %>
+      <%= link_to "Posts", posts_path %>
+    </nav>
+  </header>
+
+  <main>
+    <%= yield %>
+  </main>
+
+  <footer>
+    <p>© 2024 My Blog</p>
+  </footer>
+</body>
+</html>
+```
+
+The `<%= yield %>` line is where your actual page content goes. Rails replaces `yield` with the view for the current action.
+
+## Partials
+
+When you have the same HTML in multiple places, you can put it in a **partial** file. Partials start with an underscore:
+
+```erb
+<!-- app/views/posts/_post.html.erb -->
+<div class="post">
+  <h2><%= post.title %></h2>
+  <p><%= post.body.truncate(100) %></p>
+  <%= link_to "Read more", post %>
+</div>
+```
+
+Then you use it in other views:
+
+```erb
+<!-- app/views/posts/index.html.erb -->
+<h1>All Posts</h1>
+
+<% @posts.each do |post| %>
+  <%= render partial: "post", locals: { post: post } %>
+<% end %>
+```
+
+Or the short way:
+
+```erb
+<%= render @posts %>
+```
+
+Rails is smart. If you pass a collection of posts to `render`, it will find the `_post.html.erb` partial and render it for each post.
+
+## Helpers
+
+Rails comes with many helper methods to make your views cleaner:
+
+### Links
+
+```erb
+<%= link_to "Click me", "/some/url" %>
+<%= link_to @post.title, @post %>
+<%= link_to "Edit", edit_post_path(@post), class: "btn" %>
+```
+
+### Images
+
+```erb
+<%= image_tag "logo.png" %>
+<%= image_tag @post.cover_image, alt: @post.title %>
+```
+
+### Forms
+
+```erb
+<%= form_with model: @post do |form| %>
+  <div>
+    <%= form.label :title %>
+    <%= form.text_field :title %>
+  </div>
+  <div>
+    <%= form.label :body %>
+    <%= form.text_area :body %>
+  </div>
+  <%= form.submit "Save" %>
+<% end %>
+```
+
+`form_with` is the Rails way to create forms. It figures out the URL and HTTP method automatically based on whether `@post` is a new record or an existing one.
+
+## Conditionals in Views
+
+You can use Ruby conditionals in your views:
+
+```erb
+<% if @posts.any? %>
+  <%= render @posts %>
+<% else %>
+  <p>No posts yet. <%= link_to "Create one", new_post_path %></p>
+<% end %>
+```
+
+## Each Loop
+
+Looping through collections is very common:
+
+```erb
+<ul>
+  <% @posts.each do |post| %>
+    <li><%= link_to post.title, post %></li>
+  <% end %>
+</ul>
+```
+
+## A Note on View Logic
+
+Try to keep your views simple. They should mainly display data, not make decisions. If you have complex logic in your view, consider moving it to a helper method or the model instead.
+
+**Avoid this:**
+```erb
+<% if @user.admin? && @user.posts.any? && @user.active? %>
+  <!-- lots of HTML -->
+<% end %>
+```
+
+**Better:**
+```erb
+<!-- In the view -->
+<%= render admin_dashboard if @user.show_dashboard? %>
+
+<!-- In the model -->
+def show_dashboard?
+  admin? && posts.any? && active?
+end
+```

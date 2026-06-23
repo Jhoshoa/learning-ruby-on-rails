@@ -1,0 +1,168 @@
+---
+sidebar_position: 8
+---
+
+# Rails Best Practices
+
+When you start with Rails, it helps to learn good habits early. Here are the most important ones.
+
+## Follow Conventions
+
+Rails has strong opinions about how things should be named. Follow them and things just work.
+
+| What | Convention | Example |
+|------|-----------|---------|
+| Model class | Singular | `Post`, `User`, `Comment` |
+| Table name | Plural | `posts`, `users`, `comments` |
+| Controller | Plural | `PostsController`, `UsersController` |
+| File names | snake_case | `posts_controller.rb`, `user.rb` |
+
+If you name things right, Rails connects them automatically. A `Post` model looks for a `posts` table. A `PostsController` looks for views in `app/views/posts/`.
+
+## Fat Model, Skinny Controller
+
+This is one of the most important rules in Rails. Put your logic in the model, not the controller.
+
+**Avoid this:**
+```ruby
+# app/controllers/posts_controller.rb
+def index
+  @posts = Post.where(published: true).order(created_at: :desc)
+end
+```
+
+**Better:**
+```ruby
+# app/models/post.rb
+scope :published, -> { where(published: true) }
+scope :recent, -> { order(created_at: :desc) }
+
+# app/controllers/posts_controller.rb
+def index
+  @posts = Post.published.recent
+end
+```
+
+The controller should be thin — just enough to get data and pass it to the view. The model does the heavy lifting.
+
+## Do Not Repeat Yourself (DRY)
+
+If you write the same code twice, extract it.
+
+```ruby
+# Before: repeated code
+class PostsController < ApplicationController
+  def show
+    @post = Post.find(params[:id])
+  end
+
+  def edit
+    @post = Post.find(params[:id])
+  end
+
+  def update
+    @post = Post.find(params[:id])
+  end
+end
+
+# After: DRY with before_action
+class PostsController < ApplicationController
+  before_action :find_post, only: [:show, :edit, :update]
+
+  private
+
+  def find_post
+    @post = Post.find(params[:id])
+  end
+end
+```
+
+## Use the Rails Console
+
+The best way to learn and debug Rails is through the console:
+
+```bash
+rails console
+```
+
+Try things here before putting them in your code. Experiment without fear.
+
+## Write Tests
+
+Rails makes testing easy. It creates test files automatically when you generate models and controllers.
+
+```bash
+rails generate model Post title:string
+# Creates test/models/post_test.rb
+```
+
+Running your tests:
+
+```bash
+rails test
+```
+
+Even if you are just learning, writing tests will save you time. They catch mistakes before you deploy.
+
+## Use Partials for Repeated HTML
+
+If you see the same HTML in multiple views, pull it into a partial:
+
+```erb
+<!-- Instead of copying this everywhere -->
+<div class="post-card">
+  <h2><%= post.title %></h2>
+  <p><%= post.body.truncate(100) %></p>
+</div>
+
+<!-- Use a partial -->
+<%= render partial: "post_card", locals: { post: post } %>
+```
+
+## Use Route Helpers, Not Hard-Coded URLs
+
+```erb
+<!-- Bad: hard-coded URL -->
+<a href="/posts">All Posts</a>
+
+<!-- Good: route helper -->
+<%= link_to "All Posts", posts_path %>
+```
+
+If your URL structure changes later, the helpers will keep working.
+
+## Keep Your Gemfile Clean
+
+Every gem (library) you add has a cost: updates, security, bugs. Only add gems you actually need.
+
+The most common gems for beginners:
+
+```ruby
+gem "devise"          # User authentication (logins)
+gem "pundit"          # User permissions
+gem "bootstrap"       # CSS framework for styling
+gem "pagy"            # Pagination (multiple pages)
+```
+
+But start simple. Add gems only when you need them.
+
+## Learn by Building
+
+The best way to learn Rails is to build something. Here is a good progression:
+
+1. **A blog** — Posts, comments, users
+2. **A todo app** — Tasks, lists, due dates
+3. **A shop** — Products, cart, orders
+
+Each project teaches you something new without being overwhelming.
+
+## Resources for Learning
+
+- [guides.rubyonrails.org](https://guides.rubyonrails.org) — The official Rails guides. Start here.
+- [gorails.com](https://gorails.com) — Screencasts and tutorials
+- [ruby-lang.org](https://www.ruby-lang.org) — The Ruby language itself
+- [Stack Overflow](https://stackoverflow.com/questions/tagged/ruby-on-rails) — Answers to common problems
+
+## Your Turn
+
+Now go build something. Start with a simple blog. Break things. Fix them. Learn. That is how everyone learns Rails.

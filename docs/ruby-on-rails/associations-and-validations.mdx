@@ -1,0 +1,247 @@
+---
+sidebar_position: 7
+---
+
+# Associations and Validations
+
+When you build a real app, your data is connected. A user has posts. A post has comments. A comment belongs to a user. These connections are called **associations** in Rails.
+
+## Why Associations Matter
+
+Without associations, you would have to do everything manually:
+
+```ruby
+# Without associations (painful)
+user = User.find(1)
+posts = Post.where(user_id: user.id)
+
+# With associations (beautiful)
+user = User.find(1)
+posts = user.posts
+```
+
+Associations make your code read like plain English and save you from writing the same queries over and over.
+
+## The Main Types
+
+### belongs_to
+
+Use this when one record belongs to another:
+
+```ruby
+class Post < ApplicationRecord
+  belongs_to :user
+end
+
+class Comment < ApplicationRecord
+  belongs_to :post
+  belongs_to :user
+end
+```
+
+The table that has `belongs_to` needs a column with the other table's id. For `belongs_to :user` the `posts` table needs a `user_id` column, and the `comments` table also needs a `user_id` column.
+
+### has_many
+
+Use this when one record has many of another:
+
+```ruby
+class User < ApplicationRecord
+  has_many :posts
+  has_many :comments
+end
+
+class Post < ApplicationRecord
+  belongs_to :user
+  has_many :comments
+end
+```
+
+Now you can do:
+
+```ruby
+user = User.find(1)
+user.posts           # Returns all posts by this user
+user.comments        # Returns all comments by this user
+
+post = Post.find(1)
+post.comments        # Returns all comments on this post
+post.user            # Returns the user who wrote this post
+```
+
+### has_one
+
+Use this when one record has exactly one of another:
+
+```ruby
+class User < ApplicationRecord
+  has_one :profile
+end
+
+class Profile < ApplicationRecord
+  belongs_to :user
+end
+```
+
+This lets you do `user.profile`.
+
+### dependent: :destroy
+
+When you delete a user, you probably want to delete their posts too:
+
+```ruby
+class User < ApplicationRecord
+  has_many :posts, dependent: :destroy
+end
+```
+
+Now if you do `user.destroy`, Rails will automatically destroy all that user's posts too. Without this, those posts would stay in your database with a `user_id` that points to nothing (orphan records).
+
+## Migrations for Associations
+
+When you add an association, you need a column for the foreign key:
+
+```bash
+rails generate migration AddUserToPosts user:references
+```
+
+This creates a migration that adds `user_id` to the posts table and sets up an index. Run `rails db:migrate` to apply it.
+
+## Validations: Keeping Data Clean
+
+Validations make sure bad data never gets into your database. They check things before saving.
+
+```ruby
+class Post < ApplicationRecord
+  belongs_to :user
+  has_many :comments, dependent: :destroy
+
+  # Must have a title
+  validates :title, presence: true
+
+  # Title must be between 5 and 100 characters
+  validates :title, length: { in: 5..100 }
+
+  # Body must be present (cannot be empty)
+  validates :body, presence: true
+
+  # Author email must look like an email
+  validates :author_email, format: { with: /\A[^@\s]+@[^@\s]+\z/ }
+end
+```
+
+### Common Validations
+
+```ruby
+class User < ApplicationRecord
+  # Field must exist
+  validates :name, presence: true
+
+  # Field must be unique
+  validates :email, presence: true, uniqueness: true
+
+  # Field must be at least 6 characters
+  validates :password, length: { minimum: 6 }
+
+  # Field must be a number and greater than 0
+  validates :age, numericality: { greater_than: 0 }
+
+  # Field must be one of the allowed values
+  validates :role, inclusion: { in: %w[admin member guest] }
+end
+```
+
+### What Happens When Validation Fails
+
+When you try to save an invalid record, Rails returns `false`:
+
+```ruby
+post = Post.new(title: "")  # Title is empty, validation will fail
+post.save                   # Returns false
+post.valid?                 # Returns false
+post.errors.full_messages   # Returns ["Title can't be blank"]
+```
+
+In your controller, you use this to decide what to do:
+
+```ruby
+def create
+  @post = Post.new(post_params)
+
+  if @post.save
+    # If validation passed, show the post
+    redirect_to @post
+  else
+    # If validation failed, show the form again with errors
+    render :new
+  end
+end
+```
+
+And in your view, Rails automatically shows errors next to fields:
+
+```erb
+<%= form_with model: @post do |form| %>
+  <% if @post.errors.any? %>
+    <div id="error_explanation">
+      <h2><%= pluralize(@post.errors.count, "error") %> stopped this post from being saved:</h2>
+      <ul>
+        <% @post.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <%= form.label :title %>
+    <%= form.text_field :title %>
+  </div>
+  <!-- ... -->
+<% end %>
+```
+
+## Putting It All Together
+
+Here is a complete example of models working together:
+
+```ruby
+# app/models/user.rb
+class User < ApplicationRecord
+  has_many :posts, dependent: :destroy
+  has_many :comments, dependent: :destroy
+
+  validates :name, presence: true
+  validates :email, presence: true, uniqueness: true
+end
+
+# app/models/post.rb
+class Post < ApplicationRecord
+  belongs_to :user
+  has_many :comments, dependent: :destroy
+
+  validates :title, presence: true, length: { minimum: 5 }
+  validates :body, presence: true
+end
+
+# app/models/comment.rb
+class Comment < ApplicationRecord
+  belongs_to :post
+  belongs_to :user
+
+  validates :body, presence: true
+end
+```
+
+With this setup, you can navigate your data naturally:
+
+```ruby
+# Find a user and see their posts
+alice = User.find_by(name: "Alice")
+alice.posts.each do |post|
+  puts post.title
+  post.comments.each do |comment|
+    puts "  - #{comment.body}"
+  end
+end
+```

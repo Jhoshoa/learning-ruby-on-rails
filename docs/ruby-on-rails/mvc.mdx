@@ -4,51 +4,107 @@ sidebar_position: 2
 
 # MVC Architecture
 
-The Model-View-Controller pattern separates an application into three components.
+MVC stands for **Model-View-Controller**. It is the pattern that Rails uses to organize your code. Think of it as dividing your app into three rooms, each with a specific job.
 
-## Model
+## The Restaurant Analogy
 
-Models represent data and business logic. They handle database interactions.
+Imagine you go to a restaurant:
 
-```ruby
-# app/models/user.rb
-class User < ApplicationRecord
-  validates :name, presence: true
-  validates :email, uniqueness: true
+1. You tell the **waiter** what you want (Controller)
+2. The waiter tells the **kitchen** to prepare your food (Model)
+3. The kitchen cooks and hands the food to the waiter
+4. The waiter brings your food to you on a plate (View)
 
-  has_many :posts
-end
+In Rails:
+- **Controller** = the waiter. It takes requests from the user.
+- **Model** = the kitchen. It handles data and business logic.
+- **View** = the plate of food. It is what the user sees.
+
+## The Request Cycle
+
+When someone visits your Rails app, this is what happens step by step:
+
+```
+Browser → Route → Controller → Model → Controller → View → Browser
 ```
 
-## View
+Let us walk through it:
 
-Views present data to the user. Rails uses embedded Ruby (ERB) templates.
+1. A user types a URL in their browser (like `/posts`)
+2. Rails checks the **routes** file to see what to do with that URL
+3. The route sends the request to the right **controller** action
+4. The controller asks the **model** to get data from the database
+5. The model returns the data to the controller
+6. The controller passes the data to the **view**
+7. The view creates the HTML page and sends it back to the browser
 
-```erb
-<!-- app/views/users/show.html.erb -->
-<h1><%= @user.name %></h1>
-<p>Email: <%= @user.email %></p>
-```
+## Each Piece in Code
 
-## Controller
+Let us look at a real example. Imagine we have a blog with posts.
 
-Controllers process requests, interact with models, and render views.
-
-```ruby
-# app/controllers/users_controller.rb
-class UsersController < ApplicationController
-  def show
-    @user = User.find(params[:id])
-  end
-end
-```
-
-## Routing
+### Route
 
 ```ruby
 # config/routes.rb
 Rails.application.routes.draw do
-  resources :users
-  root "home#index"
+  resources :posts
 end
 ```
+
+This one line creates all the routes for posts: show all posts, show one post, create, update, and delete.
+
+### Model
+
+```ruby
+# app/models/post.rb
+class Post < ApplicationRecord
+  validates :title, presence: true
+end
+```
+
+The model talks to the database. Here we also said that every post must have a title.
+
+### Controller
+
+```ruby
+# app/controllers/posts_controller.rb
+class PostsController < ApplicationController
+  def index
+    @posts = Post.all
+  end
+
+  def show
+    @post = Post.find(params[:id])
+  end
+end
+```
+
+The controller gets data from the model and stores it in variables that start with `@`. These variables are special because the view can see them.
+
+### View
+
+```erb
+<!-- app/views/posts/index.html.erb -->
+<h1>All Posts</h1>
+
+<% @posts.each do |post| %>
+  <h2><%= post.title %></h2>
+  <p><%= post.body %></p>
+<% end %>
+```
+
+The view takes the data from the controller (`@posts`) and shows it as HTML. The `<% %>` tags let you run Ruby code inside HTML.
+
+## Why MVC is Great
+
+- **Separation of concerns** — Each piece has one job. Models handle data, controllers handle logic, views handle display.
+- **Easier to maintain** — When you need to change something, you know exactly where to look.
+- **Reusable** — You can use the same model with different views, or the same controller with different formats (HTML, JSON).
+
+## A Simple Rule
+
+When you are starting out, remember this:
+
+> Models talk to the database. Controllers talk to models. Views talk to users.
+
+If you keep that in mind, you will know where to put your code most of the time.

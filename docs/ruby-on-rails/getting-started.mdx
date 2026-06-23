@@ -2,47 +2,121 @@
 sidebar_position: 1
 ---
 
-# Getting Started with Rails
+# Getting Started with Ruby on Rails
 
-Ruby on Rails is a full-stack web framework following the Model-View-Controller
-(MVC) pattern.
+Welcome to Ruby on Rails. If you are new here, do not worry. We will go step by step, and I will explain everything in plain words.
 
-## Installation
+## What is Ruby on Rails?
+
+Ruby on Rails (or just **Rails**) is a tool for building web applications. It is written in the Ruby programming language. Think of it as a big box of Lego pieces that helps you build websites faster.
+
+When you build a website from scratch, there is a lot of重复 work: connecting to a database, handling user logins, organizing your code, etc. Rails does a lot of that work for you so you can focus on building what makes your app special.
+
+Rails follows two big ideas:
+
+- **Convention over Configuration** — Rails assumes you want to do things in a certain way. Instead of asking you to configure every little thing, it just works. You only need to change things when you want to do something different.
+- **Don't Repeat Yourself (DRY)** — You should write each piece of information only once. If you need the same thing in multiple places, Rails helps you share it.
+
+## Before You Start
+
+Make sure you have Ruby installed. Open your terminal (command prompt) and type:
+
+```bash
+ruby --version
+```
+
+If you see something like `ruby 3.x.x`, you are good. If not, install Ruby first from [ruby-lang.org](https://www.ruby-lang.org).
+
+## Installing Rails
+
+Installing Rails is simple. In your terminal, type:
 
 ```bash
 gem install rails
+```
+
+This tells Ruby's package manager (called RubyGems) to download and install Rails. Once it finishes, check that it worked:
+
+```bash
 rails --version
 ```
 
-## Creating a New App
+You should see something like `Rails 7.x.x` or `Rails 8.x.x`.
+
+## Creating Your First Rails App
+
+Now for the fun part. Let us create a new Rails application:
 
 ```bash
-rails new my_app
-cd my_app
+rails new my_blog
+cd my_blog
+```
+
+The `rails new` command creates a whole new folder called `my_blog` with everything you need to start. It might take a minute because it is installing all the dependencies.
+
+## Understanding the Folder Structure
+
+Once the command finishes, open the `my_blog` folder. You will see many folders and files. Do not let this scare you. Here are the most important ones:
+
+```
+my_blog/
+├── app/                    # Your application code lives here
+│   ├── controllers/        # Handles incoming requests
+│   ├── models/             # Talks to the database
+│   ├── views/              # What the user sees (HTML)
+│   └── assets/             # CSS, JavaScript, images
+├── config/
+│   ├── routes.rb           # Defines URLs for your app
+│   └── database.yml        # Database settings
+├── db/
+│   └── migrate/            # Database changes over time
+├── Gemfile                 # List of Ruby packages your app needs
+└── app/views/layouts/      # The main layout of your pages
+```
+
+Think of it this way:
+- **app/** is where YOU write your code
+- **config/** is where you set things up
+- **db/** is about your data
+
+## Starting the Server
+
+Let us see your app in the browser:
+
+```bash
 rails server
 ```
 
-## Rails Philosophy
+Now open your browser and go to `http://localhost:3000`. You should see the Rails welcome page. Congratulations, you just created a working web app.
 
-- **Convention over Configuration** - Rails makes assumptions about what you
-  want, so you write less code
-- **Don't Repeat Yourself (DRY)** - Every piece of knowledge has a single
-  representation
-- **Opinionated Software** - Rails has a preferred way of doing things
+## Creating Your First Page
 
-## Directory Structure
+Let us create a simple page that says "Hello World". Rails has a command for everything:
 
+```bash
+rails generate controller pages hello
 ```
-my_app/
-├── app/
-│   ├── controllers/
-│   ├── models/
-│   ├── views/
-│   └── assets/
-├── config/
-│   ├── routes.rb
-│   └── database.yml
-├── db/
-│   └── migrate/
-└── Gemfile
+
+This creates a controller called `pages` with an action called `hello`. Now open the file `app/views/pages/hello.html.erb` and add this:
+
+```html
+<h1>Hello World</h1>
+<p>Welcome to my first Rails app!</p>
 ```
+
+Now go to `http://localhost:3000/pages/hello` in your browser. You should see your message.
+
+## How Did That Work?
+
+Here is what happened when you visited that URL:
+
+1. Rails looked at your route (we will talk about routes soon)
+2. It found the request should go to the `pages` controller's `hello` action
+3. The controller ran and then rendered the view file `hello.html.erb`
+4. Your browser showed the HTML page
+
+This is the basic flow of every Rails app. You will learn more about each piece as we go.
+
+## What's Next?
+
+Now that you have Rails running and saw your first page, it is time to learn the core ideas that make Rails tick. Head over to the **MVC Architecture** section next.

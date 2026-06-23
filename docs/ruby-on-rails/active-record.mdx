@@ -1,70 +1,225 @@
 ---
-sidebar_position: 3
+sidebar_position: 6
 ---
 
-# Active Record
+# Active Record: Models and Databases
 
-Active Record is the ORM (Object-Relational Mapping) layer in Rails.
+Active Record is the part of Rails that talks to your database. It is called an **ORM** (Object-Relational Mapping), which is a fancy way of saying: "It turns rows in your database into Ruby objects you can work with."
 
-## Migrations
+Think of it like this:
+
+- A **table** in your database (like `posts`) becomes a **model** in Ruby (like `Post`)
+- A **row** in that table becomes an **object** (one instance of `Post`)
+- **Columns** (like `title`, `body`) become **attributes** of that object (`post.title`, `post.body`)
+
+## Creating a Model
+
+Rails has a command for generating models:
 
 ```bash
-rails generate migration CreateUsers name:string email:string
-rails db:migrate
+rails generate model Post title:string body:text published:boolean
 ```
 
+This creates two important things:
+
+1. A **model file** at `app/models/post.rb`
+2. A **migration file** in `db/migrate/`
+
+## Migrations: Changing the Database
+
+Migrations are like a diary of changes to your database. They let you create tables, add columns, and change things over time.
+
+Here is what the migration looks like:
+
 ```ruby
-class CreateUsers < ActiveRecord::Migration[7.0]
+# db/migrate/20240101000001_create_posts.rb
+class CreatePosts < ActiveRecord::Migration[7.0]
   def change
-    create_table :users do |t|
-      t.string :name
-      t.string :email
+    create_table :posts do |t|
+      t.string :title
+      t.text :body
+      t.boolean :published, default: false
       t.timestamps
     end
   end
 end
 ```
 
-## CRUD Operations
+To run your migrations and actually change the database:
 
-```ruby
-# Create
-user = User.new(name: "Alice", email: "alice@example.com")
-user.save
-
-# Read
-User.find(1)
-User.where(name: "Alice")
-User.find_by(email: "alice@example.com")
-
-# Update
-user.update(name: "Bob")
-
-# Delete
-user.destroy
+```bash
+rails db:migrate
 ```
 
-## Associations
+To undo the last migration:
+
+```bash
+rails db:rollback
+```
+
+### Adding a Column Later
+
+If you forget a column, you can add it later:
+
+```bash
+rails generate migration AddAuthorToPosts author:string
+```
+
+This creates a migration that adds an `author` column to the posts table. Run `rails db:migrate` to apply it.
+
+## The Model File
+
+Your model file is simple to start:
 
 ```ruby
-class User < ApplicationRecord
-  has_many :posts, dependent: :destroy
-  has_one :profile
-  has_and_belongs_to_many :roles
-end
-
+# app/models/post.rb
 class Post < ApplicationRecord
-  belongs_to :user
-  has_many :comments
 end
 ```
 
-## Validations
+But you will add more to it as your app grows: validations, associations, and custom methods.
+
+## CRUD: Create, Read, Update, Delete
+
+Now for the most useful part — working with your data.
+
+### Create
 
 ```ruby
-class User < ApplicationRecord
-  validates :name, presence: true, length: { maximum: 50 }
-  validates :email, presence: true, uniqueness: true
-  validates :age, numericality: { greater_than: 0 }
+# Method 1: Create and save in one step
+post = Post.create(title: "Hello World", body: "My first post")
+
+# Method 2: Create, then save separately
+post = Post.new(title: "Hello World")
+post.body = "My first post"
+post.save
+```
+
+### Read
+
+```ruby
+# Get all posts
+Post.all
+
+# Get one post by its id
+Post.find(1)
+
+# Get the first post
+Post.first
+
+# Get the last post
+Post.last
+
+# Find by a specific field
+Post.find_by(title: "Hello World")
+
+# Find multiple
+Post.find_by(title: "Hello World", author: "Alice")
+```
+
+### Query Methods
+
+```ruby
+# Where (filter)
+Post.where(published: true)
+Post.where("created_at > ?", 1.week.ago)
+Post.where(author: "Alice").where(published: true)
+
+# Order
+Post.order(created_at: :desc)
+Post.order(title: :asc)
+
+# Limit and offset
+Post.limit(5)
+Post.limit(5).offset(10)  # Skip 10, get 5
+
+# Combine them
+Post.where(published: true)
+    .order(created_at: :desc)
+    .limit(10)
+
+# Count
+Post.count
+Post.where(author: "Alice").count
+```
+
+### Update
+
+```ruby
+# Method 1: Find and update
+post = Post.find(1)
+post.update(title: "Updated Title", body: "New content")
+
+# Method 2: Update in place
+post = Post.find(1)
+post.title = "New Title"
+post.save
+
+# Method 3: Update all matching records
+Post.where(author: "Alice").update_all(author: "Bob")
+```
+
+### Delete
+
+```ruby
+# Delete one record
+post = Post.find(1)
+post.destroy
+
+# Delete by condition
+Post.where(published: false).destroy_all
+
+# Delete all
+Post.destroy_all
+```
+
+**Important:** `destroy` runs callbacks (like deleting associated records), while `delete` does not. Use `destroy` unless you know what you are doing.
+
+## Scopes
+
+Scopes let you define common queries in your model so you can reuse them:
+
+```ruby
+class Post < ApplicationRecord
+  scope :published, -> { where(published: true) }
+  scope :recent, -> { order(created_at: :desc).limit(5) }
+  scope :by_author, ->(name) { where(author: name) }
 end
 ```
+
+Then use them like this:
+
+```ruby
+Post.published
+Post.recent
+Post.by_author("Alice")
+Post.published.by_author("Alice")
+```
+
+Scopes keep your code clean and make your queries read like English.
+
+## Playing with Your Data
+
+Rails gives you a console where you can try all of this interactively:
+
+```bash
+rails console
+```
+
+Then type Ruby code and see the results immediately:
+
+```ruby
+> Post.count
+=> 0
+
+> Post.create(title: "Hello", body: "World")
+=> #<Post id: 1, title: "Hello", ...>
+
+> Post.count
+=> 1
+
+> Post.first.title
+=> "Hello"
+```
+
+This is the best way to learn Active Record. Try things in the console before putting them in your code.

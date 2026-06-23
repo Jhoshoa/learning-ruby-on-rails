@@ -1,0 +1,166 @@
+---
+sidebar_position: 4
+---
+
+# Controllers
+
+Controllers are the middleman of your Rails app. They listen for requests, talk to the database (through models), and decide what to show the user.
+
+## What a Controller Looks Like
+
+```ruby
+# app/controllers/posts_controller.rb
+class PostsController < ApplicationController
+  def index
+    @posts = Post.all
+  end
+
+  def show
+    @post = Post.find(params[:id])
+  end
+
+  def new
+    @post = Post.new
+  end
+
+  def create
+    @post = Post.new(post_params)
+    if @post.save
+      redirect_to @post
+    else
+      render :new
+    end
+  end
+end
+```
+
+Each method (called an **action**) does one thing. Let us break it down.
+
+## Controller Actions
+
+**Index** — Show a list of everything:
+```ruby
+def index
+  @posts = Post.all
+end
+# Rails will show app/views/posts/index.html.erb
+```
+
+**Show** — Show one item:
+```ruby
+def show
+  @post = Post.find(params[:id])
+end
+# Rails will show app/views/posts/show.html.erb
+```
+
+**New** — Show a form:
+```ruby
+def new
+  @post = Post.new
+end
+# Rails will show app/views/posts/new.html.erb
+```
+
+**Create** — Save the form data:
+```ruby
+def create
+  @post = Post.new(post_params)
+  if @post.save
+    redirect_to @post  # Go to the show page
+  else
+    render :new        # Show the form again with errors
+  end
+end
+```
+
+## Instance Variables
+
+Notice the `@` sign in front of variables like `@posts` and `@post`. These are called **instance variables**. They are special because the view can see them. Normal variables (like `post`) cannot be seen by the view.
+
+```ruby
+def index
+  @posts = Post.all  # ← The view can see @posts
+  greeting = "Hello" # ← The view CANNOT see greeting
+end
+```
+
+## Params
+
+`params` is a special hash that contains data from the request. When someone visits `/posts/3`, `params[:id]` is `3`.
+
+When someone submits a form, the form data is also in `params`:
+
+```ruby
+# If a form sends { title: "Hello", body: "Content" }
+# Then params looks like: { title: "Hello", body: "Content" }
+```
+
+## Strong Parameters
+
+You might have noticed `post_params` in the create action. This is a security feature. It makes sure only safe data gets saved:
+
+```ruby
+private
+
+def post_params
+  params.require(:post).permit(:title, :body)
+end
+```
+
+This says: "I only allow `title` and `body` from the form. Everything else is ignored." This protects you from someone adding extra fields to your form.
+
+## Before Actions
+
+Sometimes you want to run the same code before multiple actions. For example, finding a post for show, edit, update, and delete:
+
+```ruby
+class PostsController < ApplicationController
+  before_action :find_post, only: [:show, :edit, :update, :destroy]
+
+  def show
+    # @post is already set by the before_action
+  end
+
+  def edit
+    # @post is already set
+  end
+
+  private
+
+  def find_post
+    @post = Post.find(params[:id])
+  end
+end
+```
+
+This keeps your code clean and DRY. You write the same logic once and reuse it.
+
+## What the Controller Returns
+
+At the end of each action, the controller either:
+
+1. **Renders a view** — Default behavior. The action name matches the view name.
+   ```ruby
+   def index
+     @posts = Post.all
+   end
+   # This renders app/views/posts/index.html.erb
+   ```
+
+2. **Redirects** — Sends the user to another page.
+   ```ruby
+   redirect_to @post           # Go to the show page
+   redirect_to posts_path      # Go to the index page
+   redirect_to root_path       # Go to the homepage
+   ```
+
+3. **Renders something else** — You can render a different view or JSON.
+   ```ruby
+   render :edit                # Render the edit view instead
+   render json: @post          # Return JSON instead of HTML
+   ```
+
+## One More Thing
+
+Controllers in Rails usually have a plural name: `PostsController`, `UsersController`, `ProductsController`. This is just a convention, but follow it and things will work smoothly.

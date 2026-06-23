@@ -42,7 +42,12 @@ const sidebars: SidebarsConfig = {
       items: [
         'ruby-on-rails/getting-started',
         'ruby-on-rails/mvc',
+        'ruby-on-rails/routing',
+        'ruby-on-rails/controllers',
+        'ruby-on-rails/views',
         'ruby-on-rails/active-record',
+        'ruby-on-rails/associations-and-validations',
+        'ruby-on-rails/best-practices',
       ],
     },
     {
