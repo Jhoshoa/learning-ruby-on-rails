@@ -20,3 +20,9 @@
   --ifm-color-primary-lightest: #ed9d96;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
+
+.navbar__search {
+  flex: 1;
+  max-width: 480px;
+  margin: 0 auto;
+}

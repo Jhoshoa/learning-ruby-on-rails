@@ -7,10 +7,6 @@ const config: Config = {
   tagline: 'A comprehensive documentation of my Ruby programming journey',
   favicon: 'img/ruby-logo.png',
 
-  future: {
-    v4: true,
-  },
-
   url: 'https://jhoshoa.github.io',
   baseUrl: '/learning-ruby-on-rails/',
 
@@ -20,6 +16,22 @@ const config: Config = {
     defaultLocale: 'en',
     locales: ['en'],
   },
+
+  plugins: [
+    [
+      '@easyops-cn/docusaurus-search-local',
+      {
+        indexDocs: true,
+        indexBlog: true,
+        indexPages: false,
+        searchResultLimits: 8,
+        searchResultContextMaxLength: 80,
+        searchBarPosition: 'right',
+        language: 'en',
+        hashed: true,
+      },
+    ],
+  ],
 
   presets: [
     [
