@@ -223,3 +223,169 @@ Then type Ruby code and see the results immediately:
 ```
 
 This is the best way to learn Active Record. Try things in the console before putting them in your code.
+
+## How Rails Models Compare to .NET Terms
+
+If you come from .NET, the naming can be confusing. In ASP.NET you might have separate classes for Entity, DTO, and ViewModel. In Rails, the **Model** does all of those jobs.
+
+| .NET Concept | What It Does | Rails Equivalent |
+|---|---|---|
+| **Entity** (e.g., `PostEntity`) | Maps to a database table, one property per column | **Model** (`app/models/post.rb`) — the same thing. No separate entity class needed. |
+| **DbContext** with `DbSet<Post>` | The bridge between your code and the database | **Active Record** — built into every model. `Post.all`, `Post.find(1)` talk to the database directly. |
+| **DTO** (e.g., `PostDto`) | A simplified class that carries only the data a specific API or view needs | **Not a separate thing.** Just use the model. If you need different data, add a method or scope to the model. |
+| **ViewModel** (e.g., `PostViewModel`) | A class shaped specifically for what a view needs | **Also the model.** You pass `@post` or `@posts` directly to the view. If the view needs extra data, use a `before_action` or a helper. |
+| **Migration** (manual SQL scripts) | Changes to the database schema over time | **Migration** (`db/migrate/`) — same concept, but in Ruby and automated with `rails db:migrate` |
+| **Repository pattern** (`IPostRepository`) | A layer that hides database access behind an interface | **Not used.** Active Record IS the repository. `Post.where(...)` is already your data access layer. |
+
+### In Practice
+
+**In .NET**, you might write something like this to send data from the database to the view:
+
+```csharp
+// Entity
+public class PostEntity {
+    public int Id { get; set; }
+    public string Title { get; set; }
+    public string Body { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+// DTO (to avoid sending too much data)
+public class PostDto {
+    public string Title { get; set; }
+    public string Excerpt { get; set; }
+}
+
+// In the controller
+public IActionResult Index() {
+    var entities = _dbContext.Posts.ToList();
+    var dtos = entities.Select(e => new PostDto {
+        Title = e.Title,
+        Excerpt = e.Body.Length > 100 ? e.Body[..100] + "..." : e.Body
+    });
+    return View(dtos); // View expects a list of PostDto
+}
+```
+
+**In Rails**, the same thing is much shorter:
+
+```ruby
+# app/models/post.rb — this IS your entity and your "dto"
+class Post < ApplicationRecord
+  scope :published, -> { where(published: true) }
+end
+
+# app/controllers/posts_controller.rb
+def index
+  @posts = Post.published  # @posts is the model itself, used directly in the view
+end
+```
+
+```erb
+<!-- app/views/posts/index.html.erb — the view uses @posts directly -->
+<% @posts.each do |post| %>
+  <h2><%= post.title %></h2>
+  <p><%= post.body.truncate(100) %></p>
+<% end %>
+```
+
+If you need to shape the data differently (like a DTO), you do not create a new class. You just add a method to the model:
+
+```ruby
+class Post < ApplicationRecord
+  def excerpt
+    body.truncate(100)
+  end
+end
+```
+
+Then in the view: `<%= post.excerpt %>`.
+
+### The Key Takeaway
+
+In Rails, the **Model** is everything. It is your Entity (maps to the database), your data access layer (Active Record handles queries), and the object you pass to your views. There is no separate DTO or ViewModel. If you need to transform the data, you add a method to the model rather than creating a whole new class.
+
+This feels like less files, less boilerplate, and less jumping between classes to understand what is happening.
+
+## Active Record vs Entity Framework
+
+Both Active Record and Entity Framework are ORMs (Object-Relational Mappers). They both convert database rows into objects you can use in your code. But they have different philosophies.
+
+| Concept | Entity Framework (.NET) | Active Record (Rails) |
+|---|---|---|
+| **Setup** | You manually create a `DbContext` class, define `DbSet<T>` properties, configure connections in `appsettings.json` | You run `rails generate model Post title:string`. Rails creates the model, migration, and everything auto-wires through naming conventions. |
+| **Migrations** | `Add-Migration CreatePosts` then `Update-Database` | `rails generate model Post ...` then `rails db:migrate` |
+| **Query syntax** | LINQ: `_context.Posts.Where(p => p.Published).OrderBy(p => p.CreatedAt)` | Active Record: `Post.where(published: true).order(created_at: :desc)` |
+| **Loading related data** | `.Include(p => p.Comments)` (eager loading) or `.ThenInclude()` for nested | `.includes(:comments)` (eager loading) or just call `post.comments` (lazy loading by default) |
+| **Saving to DB** | `_context.SaveChanges()` after modifying entities | `post.save` directly on the object |
+| **Tracking changes** | `DbContext` tracks changes to entities. You modify properties and call `SaveChanges`. | The model itself tracks changes. You modify attributes and call `save`. |
+| **Database first** | Reverse-engineer models from an existing database (`Scaffold-DbContext`) | `rails db:models` or use `annotate` gem, but less common — Rails is usually code-first |
+| **Convention** | Convention over configuration exists but you often need `[Table]`, `[Column]`, `[Key]` attributes or fluent API config | Convention over configuration is stronger. A `Post` model automatically maps to the `posts` table, `id` column is the primary key, `created_at`/`updated_at` are automatic. |
+| **Raw SQL** | `_context.Database.SqlQueryRaw<Post>("SELECT * FROM posts")` | `Post.find_by_sql("SELECT * FROM posts")` |
+| **Explicit interface** | Often paired with a repository interface (`IPostRepository`) for unit testing | No repository interface by default. You query `Post.where(...)` directly. Testing uses the database or mocking. |
+
+### Code Comparison: Same Query in Both
+
+**Query:** Get the 10 most recent published posts with their comments.
+
+**Entity Framework:**
+```csharp
+// You need DbContext, Entity classes, and often a DTO
+public class PostEntity {
+    public int Id { get; set; }
+    public string Title { get; set; }
+    public string Body { get; set; }
+    public bool Published { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public List<CommentEntity> Comments { get; set; }
+}
+
+public class PostDto {
+    public string Title { get; set; }
+    public int CommentCount { get; set; }
+}
+
+// In your controller
+public async Task<IActionResult> Index() {
+    var posts = await _context.Posts
+        .Include(p => p.Comments)
+        .Where(p => p.Published)
+        .OrderByDescending(p => p.CreatedAt)
+        .Take(10)
+        .Select(p => new PostDto {
+            Title = p.Title,
+            CommentCount = p.Comments.Count
+        })
+        .ToListAsync();
+
+    return View(posts);
+}
+```
+
+**Active Record:**
+```ruby
+# The model itself is already your entity — no separate class needed
+class Post < ApplicationRecord
+  scope :published, -> { where(published: true) }
+  scope :recent, -> { order(created_at: :desc) }
+end
+
+# In your controller
+def index
+  @posts = Post.published.recent.includes(:comments).limit(10)
+end
+```
+
+```erb
+<% @posts.each do |post| %>
+  <h2><%= post.title %></h2>
+  <p><%= pluralize(post.comments.count, "comment") %></p>
+<% end %>
+```
+
+### What This Means For You
+
+- **Less code.** Active Record needs fewer files and less configuration than Entity Framework. One model file replaces Entity + DbSet + often DTO.
+- **Queries read like English.** `Post.where(published: true).order(created_at: :desc)` reads naturally. No lambda expressions or LINQ syntax to learn.
+- **No `SaveChanges()` call.** Calling `post.save` on the model directly persists to the database. There is no separate `DbContext` to manage.
+- **No repository pattern.** Active Record follows the "active record pattern" where the object itself handles database operations. You do not wrap it in a repository interface unless you have a specific reason to.
