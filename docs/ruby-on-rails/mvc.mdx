@@ -108,3 +108,35 @@ When you are starting out, remember this:
 > Models talk to the database. Controllers talk to models. Views talk to users.
 
 If you keep that in mind, you will know where to put your code most of the time.
+
+## If You Know ASP.NET MVC
+
+If you come from ASP.NET MVC, Rails MVC will feel very familiar. Here is how the concepts line up:
+
+| ASP.NET MVC | Ruby on Rails |
+|---|---|
+| `Controller` (inherits from `Controller`) | `Controller` (inherits from `ApplicationController`) |
+| `View()` returns a view | `render :action` or just let Rails find the view automatically |
+| `RedirectToAction("index")` | `redirect_to posts_path` |
+| `ViewBag` / `ViewData` | `@instance_variables` (like `@posts`, `@user`) |
+| `[HttpGet]`, `[HttpPost]` attributes | Separate methods: `def new` (GET), `def create` (POST) |
+| `RouteConfig.cs` with `MapRoute()` | `config/routes.rb` with `resources :posts` |
+| `ModelState.IsValid` | `model.valid?` / `if model.save` |
+| `DbSet<Post>` in `DbContext` | `Post` inherits `ApplicationRecord` |
+| `public ActionResult Index()` | `def index` — no return type needed |
+| LINQ (`.Where()`, `.OrderBy()`) | Active Record (`.where`, `.order`) |
+| `_PartialView.cshtml` | `_partial.html.erb` |
+| `Layout.cshtml` | `application.html.erb` |
+| `[Authorize]` attribute | `before_action :authenticate_user!` |
+| ViewModel classes | controller `@instance_variables` passed directly to view |
+| `Database.FirstOrDefault()` | `Model.find_by(...)` |
+
+### Main Differences You Will Notice
+
+**Less code.** In Rails, routes are one-liners. `resources :posts` does what 7 `MapRoute()` calls do in ASP.NET. No `ActionResult` return type needed — just name your method and Rails renders the matching view.
+
+**No separate ViewModel class.** Just set `@post = Post.find(1)` in the controller and use `@post` in the view. No `ViewBag` or extra class needed.
+
+**Convention over Configuration.** A `PostsController` with an `index` action automatically looks for `views/posts/index.html.erb`. No explicit wiring required.
+
+**Everything is RESTful by default.** Rails pushes you toward a clean URL structure (`/posts`, `/posts/1`, `/posts/1/edit`) from the start.
