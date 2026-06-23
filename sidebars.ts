@@ -49,6 +49,7 @@ const sidebars: SidebarsConfig = {
         'ruby-on-rails/associations-and-validations',
         'ruby-on-rails/best-practices',
         'ruby-on-rails/common-tasks',
+        'ruby-on-rails/raw-sql-and-legacy-databases',
       ],
     },
     {

@@ -1,0 +1,297 @@
+---
+sidebar_position: 10
+---
+
+# Raw SQL, Stored Procedures, and Existing Databases
+
+Not every project starts from scratch. Sometimes you work with a database that already exists, with tables, views, and stored procedures already built. In .NET you might use Dapper for this. Rails can handle this too, but it works differently.
+
+## A Quick Honest Answer
+
+Is using raw SQL and stored procedures **common** in Rails?
+
+**No, it is not the typical Rails way.** Most Rails apps use Active Record for everything — migrations, queries, validations, the full package. That is what Rails is designed for, and it is what the community expects.
+
+**But it is absolutely possible**, and there are legitimate reasons to do it:
+
+- You are connecting to an existing database that you cannot change
+- The database has complex stored procedures with business logic you must use
+- Your database team owns the schema and you are just reading/writing data
+- You need to call an Oracle or SQL Server database with existing procedures
+
+If this is your situation, Rails can handle it. You just need to know which tools to use and where to put things.
+
+## The .NET Comparison First
+
+If you used Dapper or raw ADO.NET in .NET, here is how the same concepts work in Rails:
+
+| .NET | Rails | What It Does |
+|---|---|---|
+| `Dapper` NuGet package | Built into Active Record (`find_by_sql`, `connection.execute`) | Run raw SQL queries and get results back as objects |
+| `connection.Query<Post>("SELECT * FROM posts")` | `Post.find_by_sql("SELECT * FROM posts")` | Run raw SQL and map results to model instances |
+| `connection.Execute("UPDATE posts SET ...")` | `ActiveRecord::Base.connection.execute("UPDATE posts ...")` | Run SQL that does not return rows |
+| `connection.Query("proc", commandType: StoredProcedure)` | `ActiveRecord::Base.connection.exec_query("BEGIN proc; END;")` or use the database adapter's procedure API | Call a stored procedure |
+| `DbConnection` / `SqlConnection` | `ActiveRecord::Base.connection` | Get the raw database connection |
+| EF Core with existing database (scaffold) | `rails db:models` or manual model creation | Create C# / Ruby classes from existing tables |
+| `appsettings.json` connection string | `config/database.yml` | Store database connection settings |
+
+## Running Raw SQL Queries
+
+Rails gives you several ways to run raw SQL:
+
+### find_by_sql — Returns Model Objects
+
+This is the closest thing to Dapper's `Query<T>`:
+
+```ruby
+# Returns Post objects, just like Post.where(...)
+posts = Post.find_by_sql("SELECT * FROM posts WHERE published = 1")
+```
+
+The results are real `Post` model instances. You can call methods on them, use them in views, everything works normally.
+
+You can also use parameters to avoid SQL injection:
+
+```ruby
+posts = Post.find_by_sql(
+  ["SELECT * FROM posts WHERE author = ? AND published = ?", "Alice", true]
+)
+```
+
+### select_all — Returns Hash/Array (No Model)
+
+If you do not want model objects, just raw data:
+
+```ruby
+result = ActiveRecord::Base.connection.select_all("SELECT * FROM posts")
+# Returns an array of hashes
+result.each do |row|
+  puts row["title"]  # Access by column name
+end
+```
+
+### execute — For INSERT, UPDATE, DELETE, DDL
+
+When you are not selecting rows:
+
+```ruby
+ActiveRecord::Base.connection.execute("UPDATE posts SET published = 0 WHERE created_at < '2020-01-01'")
+```
+
+This returns the number of rows affected (on most databases).
+
+## Calling Stored Procedures
+
+Stored procedures work differently depending on your database. Here are the common approaches:
+
+### Using exec_query (Works with Most Databases)
+
+```ruby
+# For procedures that return result sets
+result = ActiveRecord::Base.connection.exec_query("BEGIN get_posts_by_author('Alice'); END;")
+
+# With bind parameters
+result = ActiveRecord::Base.connection.exec_query(
+  "BEGIN get_posts_by_author(:author); END;",
+  "ProcedureCall",
+  [["author", "Alice"]]
+)
+```
+
+### For Oracle Specifically
+
+The `activerecord-oracle_enhanced-adapter` gem supports stored procedures directly:
+
+```ruby
+# In your model
+class Post < ApplicationRecord
+  # Call a stored function
+  def self.total_posts_by_author(author_name)
+    connection.select_value(
+      "SELECT count_posts_by_author(:author_name) FROM dual",
+      "CountPosts",
+      [["author_name", author_name]]
+    )
+  end
+end
+```
+
+To connect to Oracle, add to your `Gemfile`:
+
+```ruby
+gem "activerecord-oracle_enhanced-adapter"
+gem "ruby-oci8"  # Oracle client library
+```
+
+Then in `config/database.yml`:
+
+```yaml
+development:
+  adapter: oracle_enhanced
+  host: your-oracle-host
+  port: 1521
+  database: ORCL
+  username: my_app
+  password: my_password
+```
+
+### For SQL Server
+
+```ruby
+gem "activerecord-sqlserver-adapter"
+```
+
+```ruby
+# Call a stored procedure
+result = ActiveRecord::Base.connection.exec_proc("get_posts_by_author", "Alice")
+```
+
+## Working with an Existing Database (No Migrations)
+
+If your database already exists and you do not want Rails managing the schema, here is how to set it up:
+
+### 1. Skip Migrations
+
+Set your model to point to the existing table. The table name might not follow Rails conventions:
+
+```ruby
+# app/models/post.rb
+class Post < ApplicationRecord
+  self.table_name = "BLOG_POSTS"        # Your existing table name
+  self.primary_key = "POST_ID"          # Your existing primary key
+end
+```
+
+### 2. Disable Migrations in This Model
+
+```ruby
+class Post < ApplicationRecord
+  self.table_name = "BLOG_POSTS"
+
+  # Do not let Rails think this table needs migration
+  def self.table_name
+    "BLOG_POSTS"
+  end
+end
+```
+
+### 3. Disable Schema Dumping for the Whole App
+
+In `config/application.rb`:
+
+```ruby
+config.active_record.dump_schema_after_migration = false
+```
+
+### 4. Generate Models from Existing Tables
+
+If you have many tables, you can generate models automatically:
+
+```bash
+# This reads your database and creates model files
+rails db:models
+```
+
+Or use the `annotate` gem to add column information to your model files:
+
+```ruby
+gem "annotate"
+```
+
+Then run:
+
+```bash
+bundle exec annotate --models
+```
+
+This adds comments to each model file showing the columns, so you know what fields are available without checking the database.
+
+## Dapper — Is There an Equivalent Gem?
+
+There is no direct "Dapper for Rails" gem that is widely used, because Active Record's raw SQL methods already cover what Dapper does:
+
+| Dapper Feature | Rails Equivalent |
+|---|---|
+| `Query<T>(sql)` | `Model.find_by_sql(sql)` |
+| `Query<dynamic>(sql)` | `connection.select_all(sql)` |
+| `Execute(sql)` | `connection.execute(sql)` |
+| Multi-mapping (splitting rows across objects) | Not built-in. Use `includes` with raw SQL or process manually |
+| Async (`QueryAsync`) | No built-in async in Rails (Ruby threads handle this differently) |
+| Manual connection management | Rarely needed. Active Record manages the connection pool |
+
+If you really want a minimal, Dapper-like gem for Rails, the closest is:
+
+- **`sequel`** — A standalone SQL toolkit for Ruby. It is lighter than Active Record and gives you more control over raw SQL. Some teams use Sequel instead of Active Record for database-first projects.
+- **`scenic`** — A gem for database views. Not Dapper-like, but useful if your database has views you need to reference.
+
+But the honest answer is: **most Rails developers just use `find_by_sql` and `connection.execute`** when they need raw SQL. They do not reach for a separate micro-ORM.
+
+## Putting It Together: A Model That Uses Stored Procedures
+
+Here is a complete example of a model that wraps an existing Oracle database with stored procedures:
+
+```ruby
+# app/models/order.rb
+class Order < ApplicationRecord
+  # Point to existing table
+  self.table_name = "ORDERS"
+  self.primary_key = "ORDER_ID"
+
+  # Use a stored procedure for complex business logic
+  def self.approve_order(order_id, approver)
+    connection.exec_query(
+      "BEGIN approve_order_proc(:order_id, :approver); END;",
+      "ApproveOrder",
+      [["order_id", order_id], ["approver", approver]]
+    )
+  end
+
+  # Raw SQL for reporting (too complex for Active Record)
+  def self.monthly_summary(year, month)
+    find_by_sql(
+      ["SELECT * FROM v_monthly_summary WHERE year = ? AND month = ?", year, month]
+    )
+  end
+
+  # Use Active Record for simple queries when convenient
+  scope :recent, -> { where("created_at > ?", 30.days.ago) }
+end
+```
+
+This model uses stored procedures and views for the complex parts, while still allowing simple Active Record queries for basic operations.
+
+## Should You Do This?
+
+Here is the honest trade-off:
+
+**Stick with Active Record if:**
+- You are starting a new project
+- The database schema can change as your app evolves
+- You want maximum productivity and community support
+- You want automatic migrations, validations, associations
+
+**Use raw SQL / stored procedures if:**
+- You are connecting to an existing database you cannot change
+- Your DBA team owns all database logic and gives you stored procedures
+- You need to call Oracle or SQL Server procedures for regulatory reasons
+- You have a specific query that performs poorly with Active Record
+
+**The middle ground (most common in real Rails apps):**
+
+Most Rails apps use Active Record for 90% of queries and drop to raw SQL for the remaining 10% — complex reports, performance-critical queries, or legacy database interactions.
+
+```ruby
+# 90% Active Record
+@posts = Post.published.recent.includes(:comments)
+
+# 10% raw SQL
+@report = Post.find_by_sql("
+  SELECT authors.name, COUNT(posts.id) as post_count
+  FROM authors
+  JOIN posts ON posts.author_id = authors.id
+  GROUP BY authors.name
+  ORDER BY post_count DESC
+")
+```
+
+This hybrid approach is very common and is considered perfectly fine Rails practice.
