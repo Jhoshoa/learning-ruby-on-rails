@@ -46,6 +46,7 @@ const sidebars: SidebarsConfig = {
         'ruby-on-rails/controllers',
         'ruby-on-rails/views',
         'ruby-on-rails/active-record',
+        'ruby-on-rails/database-relationships',
         'ruby-on-rails/associations-and-validations',
         'ruby-on-rails/best-practices',
         'ruby-on-rails/common-tasks',

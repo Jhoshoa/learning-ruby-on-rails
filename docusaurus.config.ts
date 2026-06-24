@@ -31,6 +31,19 @@ const config: Config = {
         hashed: true,
       },
     ],
+    function suppressSearchPluginWarnings() {
+      return {
+        name: 'suppress-search-warnings',
+        configureWebpack() {
+          return {
+            ignoreWarnings: [
+              (warning: any) =>
+                warning.module?.resource?.includes('@easyops-cn/docusaurus-search-local') ?? false,
+            ],
+          };
+        },
+      };
+    },
   ],
 
   presets: [

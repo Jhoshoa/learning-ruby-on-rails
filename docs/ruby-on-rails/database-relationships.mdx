@@ -1,0 +1,737 @@
+---
+sidebar_position: 7
+---
+
+# Database Relationships and Design
+
+When you build a real app, your data is connected. A user has posts. A post has comments. A comment was written by a user. These connections are called **relationships**.
+
+In Rails, every relationship has **two layers**:
+
+| Layer | What it does |
+|---|---|
+| **Migration** (database) | Creates the columns, indexes, and foreign keys in your database |
+| **Model** (Ruby code) | Lets you use `user.posts`, `post.comments`, etc. in your code |
+
+You need **both** layers. The migration makes the database understand the relationship. The model makes your Ruby code understand it.
+
+## The Three Relationship Types
+
+Before writing code, ask yourself how your data connects:
+
+| Type | Question | Blog Example |
+|---|---|---|
+| **One-to-many** | Can one record have many of another? | A user has many posts. A post belongs to one user. |
+| **One-to-one** | Does each record have exactly one of another? | A user has one profile. A profile belongs to one user. |
+| **Many-to-many** | Can many records relate to many others? | A post has many tags. A tag has many posts. |
+
+Every relationship type is built the same way: decide which table gets the foreign key, write a migration, then add the association to the model.
+
+## Naming Conventions
+
+Rails follows strict naming rules. Follow them and things connect automatically.
+
+| Concept | Rule | Example |
+|---|---|---|
+| Table name | Plural, snake_case | `posts`, `users` |
+| Model class | Singular, PascalCase | `Post`, `User` |
+| Foreign key | Singular table + `_id` | `user_id`, `post_id` |
+| Join table | Both plural, alphabetical | `posts_tags` (not `tags_posts`) |
+| Primary key | Always `id` | Rails adds it automatically |
+
+If you break a convention, you need extra options like `belongs_to :user, foreign_key: :author_id`. It works, but follow the rules when you can.
+
+## One-to-Many
+
+A user has many posts. A post belongs to one user.
+
+### The Foreign Key Rule
+
+The "many" side (child table) gets the foreign key. So `posts` gets `user_id`.
+
+### Step 1: Create the Tables
+
+```bash
+rails generate model User name:string email:string
+rails generate model Post title:string body:text user:references
+```
+
+The `user:references` part is important. It tells Rails:
+
+1. Add a `user_id` column (integer, cannot be null)
+2. Add an index on `user_id` (fast lookups)
+3. Add a foreign key constraint (database rejects invalid IDs)
+
+### Step 2: The Migration (Database Layer)
+
+```ruby
+# db/migrate/20240101000002_create_posts.rb
+class CreatePosts < ActiveRecord::Migration[7.0]
+  def change
+    create_table :posts do |t|
+      t.string :title
+      t.text :body
+      t.references :user, null: false, foreign_key: true
+      t.timestamps
+    end
+  end
+end
+```
+
+Run it:
+
+```bash
+rails db:migrate
+```
+
+### Step 3: The Model (Code Layer)
+
+```ruby
+# app/models/user.rb
+class User < ApplicationRecord
+  has_many :posts, dependent: :destroy
+end
+
+# app/models/post.rb
+class Post < ApplicationRecord
+  belongs_to :user
+end
+```
+
+That is it. Now you can use them:
+
+```ruby
+user = User.find(1)
+user.posts                         # All posts by this user
+
+post = Post.find(1)
+post.user                          # The user who wrote it
+post.user.name                     # "Alice"
+
+# Create a post for a user
+user.posts.create(title: "Hello", body: "World")
+
+# Or assign an existing post
+post.update(user: user)
+```
+
+### Adding a Relationship to an Existing Table
+
+If you already have a `posts` table without `user_id`, add it later:
+
+```bash
+rails generate migration AddUserToPosts user:references
+```
+
+```ruby
+class AddUserToPosts < ActiveRecord::Migration[7.0]
+  def change
+    add_reference :posts, :user, null: false, foreign_key: true
+  end
+end
+```
+
+## One-to-One
+
+A user has one profile. A profile belongs to one user.
+
+### The Foreign Key Rule
+
+Put the foreign key on the table that represents the "belongs to" side. A profile belongs to a user, so `profiles` gets `user_id`.
+
+### Step 1: Create the Tables
+
+```bash
+rails generate model User name:string email:string
+rails generate model Profile bio:string avatar_url:string user:references
+```
+
+### Step 2: The Migration (Database Layer)
+
+```ruby
+# db/migrate/20240101000002_create_profiles.rb
+class CreateProfiles < ActiveRecord::Migration[7.0]
+  def change
+    create_table :profiles do |t|
+      t.string :bio
+      t.string :avatar_url
+      t.references :user, null: false, foreign_key: true
+      t.timestamps
+    end
+
+    # One user can only have one profile
+    add_index :profiles, :user_id, unique: true
+  end
+end
+```
+
+The `unique: true` index is important. It prevents two profiles from pointing to the same user. Without it, your database would allow duplicates even though your model says `has_one`.
+
+### Step 3: The Model (Code Layer)
+
+```ruby
+# app/models/user.rb
+class User < ApplicationRecord
+  has_one :profile, dependent: :destroy
+end
+
+# app/models/profile.rb
+class Profile < ApplicationRecord
+  belongs_to :user
+end
+```
+
+Notice the pattern: `has_one` on the parent, `belongs_to` on the child. Same as one-to-many, but the parent says `has_one` instead of `has_many`.
+
+```ruby
+user = User.find(1)
+user.profile                     # The profile
+user.profile.bio                 # "Ruby developer"
+
+# Create a profile for a user
+user.create_profile(bio: "Ruby developer")
+```
+
+### One-to-Many vs One-to-One
+
+| | has_many | has_one |
+|---|---|---|
+| Foreign key on | Child table | Child table |
+| Index on FK | Yes (non-unique) | Yes (unique) |
+| Rails model | `has_many :posts` | `has_one :profile` |
+| Returns | Array of records | Single record or nil |
+
+## Many-to-Many
+
+A post has many tags. A tag has many posts. Neither "owns" the other.
+
+### The Join Table Rule
+
+Many-to-many needs a third table in the middle called a **join table** (or junction table). This table has two foreign keys pointing to both tables.
+
+There are two ways to do this in Rails:
+
+### Simple: has_and_belongs_to_many (HABTM)
+
+Use this when you only need the connection — no extra data, no timestamps.
+
+**Step 1: Create the tables**
+
+```bash
+rails generate model Post title:string body:text
+rails generate model Tag name:string
+```
+
+**Step 2: Create the join table**
+
+```bash
+rails generate migration CreateJoinTablePostsTags posts tags
+```
+
+```ruby
+class CreateJoinTablePostsTags < ActiveRecord::Migration[7.0]
+  def change
+    create_join_table :posts, :tags do |t|
+      t.index [:post_id, :tag_id], unique: true
+      t.index [:tag_id, :post_id], unique: true
+    end
+  end
+end
+```
+
+`create_join_table` creates a table called `posts_tags` with `post_id` and `tag_id`. The two indexes make lookups fast in both directions. The `unique: true` prevents duplicate connections (a post cannot have the same tag twice).
+
+**Step 3: The model (code layer)**
+
+No model file for the join table. Just add to the two main models:
+
+```ruby
+# app/models/post.rb
+class Post < ApplicationRecord
+  has_and_belongs_to_many :tags
+end
+
+# app/models/tag.rb
+class Tag < ApplicationRecord
+  has_and_belongs_to_many :posts
+end
+```
+
+```ruby
+post = Post.find(1)
+post.tags                          # [#<Tag id: 1, name: "ruby">, #<Tag id: 2>]
+tag.posts                          # [#<Post id: 1>, #<Post id: 3>]
+
+# Add a tag
+post.tags << Tag.find_by(name: "ruby")
+
+# Remove a tag
+post.tags.delete(Tag.find_by(name: "ruby"))
+```
+
+### Rich: has_many :through
+
+Use this when the relationship itself has extra data. For example, a user votes on posts. Each vote stores a value (up or down).
+
+**Step 1: Create the tables**
+
+The join table is a full model here:
+
+```bash
+rails generate model Vote user:references post:references value:integer
+```
+
+**Step 2: The migration (database layer)**
+
+```ruby
+class CreateVotes < ActiveRecord::Migration[7.0]
+  def change
+    create_table :votes do |t|
+      t.references :user, null: false, foreign_key: true
+      t.references :post, null: false, foreign_key: true
+      t.integer :value, default: 0
+      t.timestamps
+    end
+
+    # One user can only vote once per post
+    add_index :votes, [:user_id, :post_id], unique: true
+  end
+end
+```
+
+The `unique: true` index on the pair of foreign keys ensures a user cannot vote on the same post twice.
+
+**Step 3: The model (code layer)**
+
+The join table has its own model file:
+
+```ruby
+# app/models/vote.rb
+class Vote < ApplicationRecord
+  belongs_to :user
+  belongs_to :post
+end
+
+# app/models/user.rb
+class User < ApplicationRecord
+  has_many :votes, dependent: :destroy
+  has_many :voted_posts, through: :votes, source: :post
+end
+
+# app/models/post.rb
+class Post < ApplicationRecord
+  has_many :votes, dependent: :destroy
+  has_many :voters, through: :votes, source: :user
+end
+```
+
+The `through: :votes` tells Rails: "go through the votes table to get posts." The `source: :post` tells it which column in votes to follow.
+
+```ruby
+user = User.find(1)
+user.votes                         # All votes by this user
+user.voted_posts                   # All posts this user voted on (through votes)
+
+post = Post.find(1)
+post.voters                        # All users who voted on this post
+
+# Cast a vote
+Vote.create(user: user, post: post, value: 1)
+```
+
+### HABTM vs has_many :through
+
+| | HABTM | has_many :through |
+|---|---|---|
+| Join table model | No | Yes |
+| Extra columns | No | Yes (value, date, etc.) |
+| Timestamps | No | Yes |
+| Validations | No | Yes |
+| When to use | Simple tags, categories | Votes, enrollments, orders |
+
+**Rule of thumb:** If the connection itself has data (like "when did this user enroll?" or "was this vote up or down?"), use `has_many :through`. If it is just a list (like tags on a post), use HABTM.
+
+## Polymorphic
+
+Sometimes a model can belong to multiple different types of models. For example, comments can be on posts OR on other comments (replies).
+
+### The Two-Column Rule
+
+Instead of one foreign key, you use two columns: an id and a type.
+
+### Step 1: Create the Tables
+
+```bash
+rails generate migration CreateComments body:text commentable:references{polymorphic}
+```
+
+The `{polymorphic}` tells Rails to create two columns instead of one:
+
+### Step 2: The Migration (Database Layer)
+
+```ruby
+class CreateComments < ActiveRecord::Migration[7.0]
+  def change
+    create_table :comments do |t|
+      t.text :body
+      t.references :commentable, polymorphic: true, null: false
+      t.timestamps
+    end
+
+    add_index :comments, [:commentable_type, :commentable_id]
+  end
+end
+```
+
+This creates:
+- `commentable_id` — the id of the related record (e.g., `5`)
+- `commentable_type` — the class name of the related record (e.g., `"Post"` or `"Comment"`)
+
+A comment with `commentable_id: 5, commentable_type: "Post"` belongs to Post #5.  
+A comment with `commentable_id: 3, commentable_type: "Comment"` is a reply to Comment #3.
+
+The composite index `[:commentable_type, :commentable_id]` makes lookups by both columns fast.
+
+### Step 3: The Model (Code Layer)
+
+```ruby
+# app/models/comment.rb
+class Comment < ApplicationRecord
+  belongs_to :commentable, polymorphic: true
+  belongs_to :user
+  has_many :comments, as: :commentable, dependent: :destroy
+end
+
+# app/models/post.rb
+class Post < ApplicationRecord
+  has_many :comments, as: :commentable, dependent: :destroy
+end
+```
+
+The `polymorphic: true` tells Rails to look at both `commentable_type` and `commentable_id`. The `as: :commentable` is the inverse — it tells the parent that comments can attach to it.
+
+```ruby
+post = Post.find(1)
+post.comments                      # All comments on this post
+
+comment = Comment.find(1)
+comment.commentable                # Returns the Post (or Comment) it belongs to
+comment.commentable_type           # "Post"
+
+# Add a comment to a post
+post.comments.create(body: "Great post!", user: alice)
+
+# Reply to a comment (self-referential through polymorphic)
+comment.comments.create(body: "Thanks!", user: bob)
+```
+
+### Converting an Existing Foreign Key to Polymorphic
+
+If you already have `post_id` on comments and want to switch to polymorphic:
+
+```bash
+rails g migration AddPolymorphicToComments commentable:references{polymorphic}
+```
+
+Then edit the migration before running it:
+
+```ruby
+class AddPolymorphicToComments < ActiveRecord::Migration[7.0]
+  def change
+    remove_reference :comments, :post, index: true, foreign_key: true
+    add_reference :comments, :commentable, polymorphic: true, null: false
+  end
+end
+```
+
+## Self-Referential
+
+Sometimes a record points to another record in the **same table**. For example, a user has a manager, and that manager is also a user.
+
+### The Same-Table Rule
+
+The foreign key column is in the same table it references.
+
+### Step 1: Create the Migration
+
+```bash
+rails generate migration AddManagerToUsers manager:references
+```
+
+### Step 2: The Migration (Database Layer)
+
+```ruby
+class AddManagerToUsers < ActiveRecord::Migration[7.0]
+  def change
+    add_reference :users, :manager, foreign_key: { to_table: :users }
+  end
+end
+```
+
+The `foreign_key: { to_table: :users }` is required because Rails normally expects the foreign key to match a table name. Since the column is `manager_id`, Rails would look for a `managers` table. You have to tell it the real table.
+
+### Step 3: The Model (Code Layer)
+
+```ruby
+# app/models/user.rb
+class User < ApplicationRecord
+  belongs_to :manager, class_name: "User", optional: true
+  has_many :subordinates, class_name: "User", foreign_key: :manager_id, dependent: :nullify
+end
+```
+
+The `class_name: "User"` tells Rails the `manager_id` column points to the `users` table (not a `managers` table). `optional: true` means a user can have no manager. `has_many :subordinates` gives you the reverse direction with a custom name.
+
+```ruby
+alice = User.find(1)
+bob = User.find(2)
+
+bob.update(manager: alice)
+
+bob.manager                        # => alice
+alice.subordinates                 # => [bob]
+```
+
+## Foreign Key Constraints
+
+A foreign key constraint is a rule in the database that says: "every value in this column must exist in the other table." It prevents orphan records.
+
+```ruby
+# With foreign key constraint (database rejects this)
+Post.create(title: "Orphan", user_id: 999)
+# => ActiveRecord::InvalidForeignKey: PG::ForeignKeyViolation
+
+# Without foreign key constraint (silently creates orphan)
+Post.create(title: "Orphan", user_id: 999)
+# => Works, but user 999 does not exist. Now you have a post pointing to nothing.
+```
+
+When you use `t.references :user, foreign_key: true`, Rails creates this constraint automatically. You can see it in `db/schema.rb`:
+
+```ruby
+add_foreign_key "posts", "users"
+```
+
+**Always use foreign key constraints.** They are your safety net. Even if your Rails validations fail to catch something, the database will not accept bad data.
+
+### Adding a Foreign Key Later
+
+If you already have a column without a constraint:
+
+```bash
+rails g migration AddForeignKeyToPosts
+```
+
+```ruby
+class AddForeignKeyToPosts < ActiveRecord::Migration[7.0]
+  def change
+    add_foreign_key :posts, :users
+  end
+end
+```
+
+## Managing Your Schema
+
+Every time you run a migration, Rails generates `db/schema.rb` — a snapshot of your database structure.
+
+```ruby
+# db/schema.rb (auto-generated, do not edit)
+ActiveRecord::Schema[7.0].define(version: 2024_01_01_000001) do
+  create_table "posts", force: :cascade do |t|
+    t.string "title"
+    t.text "body"
+    t.integer "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_posts_on_user_id"
+  end
+
+  add_foreign_key "posts", "users"
+end
+```
+
+### Loading vs Migrating
+
+| Situation | Command |
+|---|---|
+| You wrote a new migration | `rails db:migrate` |
+| Setting up a fresh database | `rails db:schema:load` (then `db:seed`) |
+| Rolling back | `rails db:rollback` |
+| CI / tests | `rails db:schema:load` (fast) |
+| Production deploy | `rails db:migrate` (preserves data) |
+
+`rails db:schema:load` is faster than running all migrations because it loads the final schema directly.
+
+### Seeding Data
+
+`db/seeds.rb` runs with `rails db:seed` and fills your database with initial data:
+
+```ruby
+# db/seeds.rb
+admin = User.create!(name: "Admin", email: "admin@example.com")
+
+5.times do |i|
+  Post.create!(title: "Sample ##{i}", body: "Body text.", user: admin, published: true)
+end
+```
+
+Write seeds so they do not duplicate data on repeat runs:
+
+```ruby
+User.find_or_create_by!(email: "admin@example.com") do |u|
+  u.name = "Admin"
+end
+```
+
+## Production Migration Rules
+
+### Never Edit Old Migrations
+
+Once a migration is deployed, write a new one instead. Editing old ones breaks your teammates and your rollback strategy.
+
+```ruby
+# ❌ Bad — this migration already ran on production
+class CreatePosts < ActiveRecord::Migration[7.0]
+  def change
+    create_table :posts do |t|
+      t.string :title
+      # t.string :author  ← do not uncomment this
+    end
+  end
+end
+
+# ✅ Good — write a new migration
+class AddAuthorToPosts < ActiveRecord::Migration[7.0]
+  def change
+    add_column :posts, :author, :string
+  end
+end
+```
+
+### Check Migration Status
+
+```bash
+rails db:migrate:status
+```
+
+Shows which migrations are applied (up) and which are pending (down):
+
+```
+ Status   Migration ID    Migration Name
+--------------------------------------------------
+   up     20240101000001  Create posts
+   up     20240102000001  Create users
+  down    20240103000001  Create comments
+```
+
+## Full Blog Database Design
+
+Here are all the migrations for a blog with users, posts, comments (polymorphic), tags (HABTM), and votes (has_many :through):
+
+```ruby
+# db/migrate/20240101000001_create_users.rb
+class CreateUsers < ActiveRecord::Migration[7.0]
+  def change
+    create_table :users do |t|
+      t.string :name, null: false
+      t.string :email, null: false
+      t.timestamps
+    end
+    add_index :users, :email, unique: true
+  end
+end
+
+# db/migrate/20240101000002_create_posts.rb
+class CreatePosts < ActiveRecord::Migration[7.0]
+  def change
+    create_table :posts do |t|
+      t.string :title, null: false
+      t.text :body, null: false
+      t.boolean :published, default: false
+      t.references :user, null: false, foreign_key: true
+      t.timestamps
+    end
+    add_index :posts, [:user_id, :created_at]
+  end
+end
+
+# db/migrate/20240101000003_create_tags.rb
+class CreateTags < ActiveRecord::Migration[7.0]
+  def change
+    create_table :tags do |t|
+      t.string :name, null: false
+      t.timestamps
+    end
+    add_index :tags, :name, unique: true
+  end
+end
+
+# db/migrate/20240101000004_create_join_table_posts_tags.rb
+class CreateJoinTablePostsTags < ActiveRecord::Migration[7.0]
+  def change
+    create_join_table :posts, :tags do |t|
+      t.index [:post_id, :tag_id], unique: true
+      t.index [:tag_id, :post_id], unique: true
+    end
+  end
+end
+
+# db/migrate/20240101000005_create_comments.rb
+class CreateComments < ActiveRecord::Migration[7.0]
+  def change
+    create_table :comments do |t|
+      t.text :body, null: false
+      t.references :commentable, polymorphic: true, null: false
+      t.references :user, null: false, foreign_key: true
+      t.timestamps
+    end
+    add_index :comments, [:commentable_type, :commentable_id]
+    add_index :comments, :user_id
+  end
+end
+
+# db/migrate/20240101000006_create_votes.rb
+class CreateVotes < ActiveRecord::Migration[7.0]
+  def change
+    create_table :votes do |t|
+      t.references :user, null: false, foreign_key: true
+      t.references :post, null: false, foreign_key: true
+      t.integer :value, default: 0
+      t.timestamps
+    end
+    add_index :votes, [:user_id, :post_id], unique: true
+  end
+end
+```
+
+And the models that connect them:
+
+```ruby
+class User < ApplicationRecord
+  has_many :posts, dependent: :destroy
+  has_many :comments, dependent: :destroy
+  has_many :votes, dependent: :destroy
+end
+
+class Post < ApplicationRecord
+  belongs_to :user
+  has_many :comments, as: :commentable, dependent: :destroy
+  has_many :votes, dependent: :destroy
+  has_and_belongs_to_many :tags
+end
+
+class Comment < ApplicationRecord
+  belongs_to :user
+  belongs_to :commentable, polymorphic: true
+  has_many :comments, as: :commentable, dependent: :destroy
+end
+
+class Tag < ApplicationRecord
+  has_and_belongs_to_many :posts
+end
+
+class Vote < ApplicationRecord
+  belongs_to :user
+  belongs_to :post
+end
+```
