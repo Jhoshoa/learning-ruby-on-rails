@@ -109,35 +109,32 @@ This creates a migration that adds `user_id` to the posts table and sets up an i
 
 ## Validations: Keeping Data Clean
 
-Validations make sure bad data never gets into your database. They check things before saving.
+Rails gives you **two layers** of data protection. Think of them as a bouncer at the door (application layer) and a locked vault (database layer). Both exist for different reasons and you should use both.
+
+### Application-Level Validations (Model Layer)
+
+These live in your model file (`app/models/post.rb`). They run **before** the SQL query hits the database. If validation fails, Rails never sends the INSERT/UPDATE to the database. This is your first line of defense.
 
 ```ruby
 class Post < ApplicationRecord
   belongs_to :user
   has_many :comments, dependent: :destroy
 
-  # Must have a title
   validates :title, presence: true
-
-  # Title must be between 5 and 100 characters
   validates :title, length: { in: 5..100 }
-
-  # Body must be present (cannot be empty)
   validates :body, presence: true
-
-  # Author email must look like an email
   validates :author_email, format: { with: /\A[^@\s]+@[^@\s]+\z/ }
 end
 ```
 
-### Common Validations
+### Common Application Validations
 
 ```ruby
 class User < ApplicationRecord
-  # Field must exist
+  # Field must exist (not nil, not empty string)
   validates :name, presence: true
 
-  # Field must be unique
+  # Field must be unique across all records
   validates :email, presence: true, uniqueness: true
 
   # Field must be at least 6 characters
@@ -148,8 +145,133 @@ class User < ApplicationRecord
 
   # Field must be one of the allowed values
   validates :role, inclusion: { in: %w[admin member guest] }
+
+  # Field must match a pattern
+  validates :slug, format: { with: /\A[a-z0-9-]+\z/, message: "only lowercase letters, numbers, and dashes" }
 end
 ```
+
+These validations are **Ruby code** — they run in the application process. They give you nice error messages for users and prevent bad data from even attempting to reach the database.
+
+### Database-Level Constraints (Migration Layer)
+
+These live in your migration files (`db/migrate/...`). They are enforced **inside the database itself**, at the SQL level. Even if your app has a bug or someone inserts data directly, the database will reject bad data.
+
+```ruby
+# db/migrate/20240101000001_create_posts.rb
+class CreatePosts < ActiveRecord::Migration[7.0]
+  def change
+    create_table :posts do |t|
+      t.string :title, null: false                    # Cannot be NULL in the database
+      t.text :body, null: false                       # Cannot be NULL
+      t.string :author_email                          # Can be NULL (no null: false)
+      t.boolean :published, default: false            # Default value if not provided
+      t.integer :position, default: 0                 # Defaults to 0
+      t.timestamps
+    end
+
+    # Unique index — database will reject duplicates
+    add_index :posts, :author_email, unique: true
+  end
+end
+```
+
+### Common Database Constraints
+
+```ruby
+# In your migration, inside create_table or add_column:
+
+# NOT NULL — column cannot be empty
+t.string :title, null: false
+
+# Default value — fills in automatically if not provided
+t.integer :views_count, default: 0
+t.boolean :published, default: false
+
+# Unique index — prevents duplicate values at the database level
+add_index :users, :email, unique: true
+
+# Unique index on two columns together (e.g., one vote per user per post)
+add_index :votes, [:user_id, :post_id], unique: true
+
+# Foreign key — ensures the referenced record exists (Rails adds this automatically with references)
+t.references :user, null: false, foreign_key: true
+
+# Limit on string length
+t.string :title, limit: 100
+```
+
+You can also add constraints to an **existing** table with a migration:
+
+```bash
+rails g migration AddNullFalseToPostsTitle
+```
+
+```ruby
+class AddNullFalseToPostsTitle < ActiveRecord::Migration[7.0]
+  def change
+    change_column_null :posts, :title, false
+  end
+end
+```
+
+### Application vs Database: Which One to Use?
+
+Both layers exist for different reasons:
+
+| Concern | Application Validations | Database Constraints |
+|---|---|---|
+| **When it runs** | Before the SQL query, in Ruby | During the SQL query, inside the database |
+| **Error messages** | Friendly, user-facing (`"Title can't be blank"`) | Generic SQL errors, not meant for users |
+| **Enforcement** | Only if data goes through your Rails app | Always — even direct SQL or another app |
+| **Performance** | Fast (no DB round-trip for simple checks) | Can be faster for uniqueness checks (indexed) |
+| **What it catches** | Format, length, custom business rules | Null values, duplicates, referential integrity |
+
+### The Problem with Only Application Validations
+
+```ruby
+# app/models/post.rb
+class Post < ApplicationRecord
+  validates :title, presence: true
+end
+```
+
+This works **most** of the time. But what happens when:
+- A developer runs `Post.create!(title: nil)` in the Rails console (skips validation with `!`?)
+- Another service writes directly to the database
+- A migration adds rows without going through the model
+- Two requests hit the server at the same time — both pass `uniqueness` validation before either saves (race condition)
+
+### The Fix: Use Both Layers
+
+```ruby
+# Migration — database won't accept NULL titles or duplicate emails
+class CreateUsers < ActiveRecord::Migration[7.0]
+  def change
+    create_table :users do |t|
+      t.string :name, null: false
+      t.string :email, null: false
+      t.timestamps
+    end
+    add_index :users, :email, unique: true
+  end
+end
+```
+
+```ruby
+# Model — gives users nice error messages
+class User < ApplicationRecord
+  validates :name, presence: true
+  validates :email, presence: true, uniqueness: true
+end
+```
+
+Now you get:
+1. **Friendly messages** when a user forgets to fill in a field (application validation)
+2. **Safety net** if something bypasses your model (database constraint)
+3. **Race condition protection** for uniqueness — the database index guarantees it
+
+**Rule of thumb:** Always add `null: false` and `unique: true` (where appropriate) in migrations, AND add corresponding `validates` in the model. The database constraint is your safety net; the model validation is your user-friendly gatekeeper.
 
 ### What Happens When Validation Fails
 

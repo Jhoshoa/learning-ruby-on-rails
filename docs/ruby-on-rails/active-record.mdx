@@ -27,44 +27,15 @@ This creates two important things:
 
 ## Migrations: Changing the Database
 
-Migrations are like a diary of changes to your database. They let you create tables, add columns, and change things over time.
+Migrations are like a diary of changes to your database. They let you create tables, add columns, remove columns, and change things over time. Every migration is a file in `db/migrate/` with a timestamp so Rails knows the order.
 
-### rails generate migration
+### Creating a New Table
 
-Use `rails generate migration` (short form: `rails g migration`) when you already have a model and need to modify its table — adding a column, changing a type, adding an index, etc.
-
-Use `rails generate model` (which creates the model file + a migration) only when you are creating a **new** table.
+When you generate a model, Rails creates a migration for the new table automatically:
 
 ```bash
-# New table — use generate model
-rails generate model Post title:string body:text
-
-# Existing table — use generate migration
-rails generate migration AddAuthorToPosts author:string
-rails generate migration AddPublishedToPosts published:boolean
+rails generate model Post title:string body:text published:boolean
 ```
-
-Rails reads the migration name and infers the change. `AddAuthorToPosts author:string` tells Rails: "add an `author` column of type string to the `posts` table." The generated migration looks like this:
-
-```ruby
-class AddAuthorToPosts < ActiveRecord::Migration[7.0]
-  def change
-    add_column :posts, :author, :string
-  end
-end
-```
-
-Other common migration examples:
-
-```bash
-rails g migration RemoveAuthorFromPosts author:string   # Remove a column
-rails g migration AddIndexToPosts title:string          # Add an index
-rails g migration ChangeBodyInPosts body:text           # Change a column type
-```
-
-Each creates a migration file in `db/migrate/`. Run `rails db:migrate` to apply it.
-
-Here is what the migration looks like:
 
 ```ruby
 # db/migrate/20240101000001_create_posts.rb
@@ -80,27 +51,217 @@ class CreatePosts < ActiveRecord::Migration[7.0]
 end
 ```
 
-To run your migrations and actually change the database:
+### Adding a Column Later
+
+Generating by naming convention (recommended — Rails figures out the change):
+
+```bash
+rails generate migration AddAuthorToPosts author:string
+rails g migration AddPublishedToPosts published:boolean
+```
+
+Rails reads the name `AddAuthorToPosts author:string` and generates:
+
+```ruby
+class AddAuthorToPosts < ActiveRecord::Migration[7.0]
+  def change
+    add_column :posts, :author, :string
+  end
+end
+```
+
+Writing it manually (same result, more typing):
+
+```ruby
+class AddAuthorToPosts < ActiveRecord::Migration[7.0]
+  def change
+    add_column :posts, :author, :string
+  end
+end
+```
+
+### Removing a Column
+
+Generating by naming convention:
+
+```bash
+rails g migration RemoveAuthorFromPosts author:string
+```
+
+Produces:
+
+```ruby
+class RemoveAuthorFromPosts < ActiveRecord::Migration[7.0]
+  def change
+    remove_column :posts, :author, :string
+  end
+end
+```
+
+The type (`:string`) is needed so Rails can recreate the column if you rollback.
+
+### Changing a Column's Type
+
+```bash
+rails g migration ChangeBodyInPosts body:text
+```
+
+```ruby
+class ChangeBodyInPosts < ActiveRecord::Migration[7.0]
+  def change
+    change_column :posts, :body, :text
+  end
+end
+```
+
+**Caution:** `change_column` is not reversible by convention. If you need to rollback safely, use `reversible`:
+
+```ruby
+class ChangeBodyInPosts < ActiveRecord::Migration[7.0]
+  def change
+    reversible do |dir|
+      dir.up   { change_column :posts, :body, :text }
+      dir.down { change_column :posts, :body, :string }
+    end
+  end
+end
+```
+
+### Adding an Index
+
+```bash
+rails g migration AddIndexToPosts title:string
+```
+
+```ruby
+class AddIndexToPosts < ActiveRecord::Migration[7.0]
+  def change
+    add_index :posts, :title
+  end
+end
+```
+
+For a unique index:
+
+```ruby
+class AddUniqueIndexToUsersEmail < ActiveRecord::Migration[7.0]
+  def change
+    add_index :users, :email, unique: true
+  end
+end
+```
+
+### Naming Convention Summary
+
+Rails can auto-generate the migration body if you name it correctly:
+
+| Command | What it generates |
+|---|---|
+| `rails g migration AddXToY x:type` | `add_column :y, :x, :type` |
+| `rails g migration RemoveXFromY x:type` | `remove_column :y, :x, :type` |
+| `rails g migration AddXToY x:type z:type` | `add_column` for each |
+| `rails g migration AddIndexToY x:type` | `add_index :y, :x` |
+
+If your change is more complex, just name it whatever you want and write the body yourself:
+
+```bash
+rails g migration AddPositionAndRemoveOldField
+```
+
+Then fill in the `change` method manually.
+
+### How Rollback Works
+
+Every migration in the default `change` method is **reversible** — Rails knows how to undo it.
+
+Running migrations forward:
 
 ```bash
 rails db:migrate
 ```
 
-To undo the last migration:
+Undoing the last migration:
 
 ```bash
 rails db:rollback
 ```
 
-### Adding a Column Later
-
-If you forget a column, you can add it later:
+Undoing the last 3 migrations:
 
 ```bash
-rails generate migration AddAuthorToPosts author:string
+rails db:rollback STEP=3
 ```
 
-This creates a migration that adds an `author` column to the posts table. Run `rails db:migrate` to apply it.
+Going back to a specific migration version:
+
+```bash
+rails db:migrate VERSION=20240101000001
+```
+
+What Rails can reverse automatically:
+
+| Migration method | Reverse (rollback) |
+|---|---|
+| `create_table` | `drop_table` |
+| `add_column` | `remove_column` |
+| `remove_column` | `add_column` (needs the type specified) |
+| `add_index` | `remove_index` |
+| `create_join_table` | `drop_join_table` |
+
+What Rails **cannot** reverse automatically:
+
+| Migration method | Problem |
+|---|---|
+| `change_column` | Rails does not know the old type. Use `reversible` block or use `change_column_default` separately. |
+| `change_table` with block | Any operation inside needs to be reversible on its own. |
+| `remove_column` **without** the type | Rails does not know what type to restore. Always specify the type. |
+| `execute` (raw SQL) | Rails has no way to reverse it. Wrap in `reversible` block. |
+
+### Handling Non-Reversible Migrations
+
+For changes Rails cannot figure out on its own, use `reversible`:
+
+```ruby
+class ChangeBodyInPosts < ActiveRecord::Migration[7.0]
+  def change
+    reversible do |dir|
+      dir.up do
+        change_column :posts, :body, :text
+      end
+      dir.down do
+        change_column :posts, :body, :string  # Restore old type
+      end
+    end
+  end
+end
+```
+
+Or use the older `up` / `down` method style:
+
+```ruby
+class ChangeBodyInPosts < ActiveRecord::Migration[7.0]
+  def up
+    change_column :posts, :body, :text
+  end
+
+  def down
+    change_column :posts, :body, :string
+  end
+end
+```
+
+### Running Your Migrations
+
+```bash
+# Apply all pending migrations
+rails db:migrate
+
+# Undo the last one
+rails db:rollback
+
+# Check the current status (which ones are up/down)
+rails db:migrate:status
+```
 
 ## The Model File
 
