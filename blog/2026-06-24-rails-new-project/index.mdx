@@ -1,0 +1,102 @@
+---
+slug: rails-new-project
+title: Start a New Rails Project (SQLite)
+authors: [learner]
+tags: [rails, setup]
+---
+
+A quick reference to create a new Rails project, set up the database, and play with data in the console.
+
+## Create the Project
+
+```bash
+rails new my_blog
+cd my_blog
+```
+
+- `rails new` generates a full Rails app with SQLite by default (no extra flags needed)
+- Downloads all dependencies via Bundler
+
+## Start the Server
+
+```bash
+rails server
+```
+
+Open `http://localhost:3000` in your browser. You should see the Rails welcome page.
+
+## Generate a Model (Table)
+
+```bash
+rails generate model Post title:string body:text
+```
+
+- Creates `app/models/post.rb` (the model)
+- Creates a migration file in `db/migrate/` (instructions to create the `posts` table)
+
+## Run the Migration
+
+```bash
+rails db:migrate
+```
+
+- Executes the migration SQL — creates the `posts` table in the database
+- The table will have columns: `id`, `title`, `body`, `created_at`, `updated_at`
+
+## Play in the Console
+
+Open an interactive Ruby environment inside your app:
+
+```bash
+rails console
+```
+
+Then type:
+
+```ruby
+# How many posts?
+Post.count
+
+# Create a post
+Post.create(title: "Hello Rails", body: "My first post!")
+
+# Read
+Post.all
+Post.find(1)
+Post.first
+
+# Update
+post = Post.find(1)
+post.update(title: "Updated Title")
+
+# Delete
+post = Post.find(1)
+post.destroy
+Post.count
+
+# Exit the console
+exit
+```
+
+## Start from Scratch (Reset DB)
+
+If you want to drop everything and start over:
+
+```bash
+rails db:drop db:create db:migrate
+```
+
+## Quick Reference
+
+| Command | What it does |
+|---|---|
+| `rails new my_app` | Creates a new Rails project |
+| `rails server` | Starts the dev server on port 3000 |
+| `rails generate model Post title:string` | Creates model + migration |
+| `rails db:migrate` | Applies pending migrations |
+| `rails db:rollback` | Undoes the last migration |
+| `rails db:drop` | Deletes the database |
+| `rails db:create` | Creates the database |
+| `rails db:seed` | Runs `db/seeds.rb` to load initial data |
+| `rails console` | Opens an interactive Ruby session |
+| `rails routes` | Lists all defined routes |
