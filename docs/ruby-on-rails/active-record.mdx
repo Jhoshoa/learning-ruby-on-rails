@@ -29,6 +29,41 @@ This creates two important things:
 
 Migrations are like a diary of changes to your database. They let you create tables, add columns, and change things over time.
 
+### rails generate migration
+
+Use `rails generate migration` (short form: `rails g migration`) when you already have a model and need to modify its table — adding a column, changing a type, adding an index, etc.
+
+Use `rails generate model` (which creates the model file + a migration) only when you are creating a **new** table.
+
+```bash
+# New table — use generate model
+rails generate model Post title:string body:text
+
+# Existing table — use generate migration
+rails generate migration AddAuthorToPosts author:string
+rails generate migration AddPublishedToPosts published:boolean
+```
+
+Rails reads the migration name and infers the change. `AddAuthorToPosts author:string` tells Rails: "add an `author` column of type string to the `posts` table." The generated migration looks like this:
+
+```ruby
+class AddAuthorToPosts < ActiveRecord::Migration[7.0]
+  def change
+    add_column :posts, :author, :string
+  end
+end
+```
+
+Other common migration examples:
+
+```bash
+rails g migration RemoveAuthorFromPosts author:string   # Remove a column
+rails g migration AddIndexToPosts title:string          # Add an index
+rails g migration ChangeBodyInPosts body:text           # Change a column type
+```
+
+Each creates a migration file in `db/migrate/`. Run `rails db:migrate` to apply it.
+
 Here is what the migration looks like:
 
 ```ruby
