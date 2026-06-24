@@ -1,0 +1,36 @@
+---
+slug: install-ruby-windows
+title: Install Ruby on Windows
+authors: [learner]
+tags: [ruby, setup]
+---
+
+The standard way to install Ruby on Windows is **RubyInstaller** — the official .exe installer.
+
+Reference: [rubyinstaller.org](https://rubyinstaller.org/)
+
+## Install
+
+1. Go to [rubyinstaller.org/downloads](https://rubyinstaller.org/downloads/)
+2. Download **Ruby+Devkit x64** (the latest stable version)
+3. Run the .exe — click through the installer
+4. On the final screen, make sure "Run 'ridk install'" is checked
+5. In the terminal that opens, press **Enter** to accept the default MSYS2 installation
+
+## Verify
+
+Open a new terminal:
+
+```powershell
+ruby --version
+# Should show: ruby 3.4.x
+
+gem --version
+# Should show: 3.6.x
+```
+
+## Notes
+
+- RubyInstaller installs to `C:\Program Files\` — you will need to run PowerShell **as Administrator** when running `gem install rails`.
+- The DevKit (MSYS2) is needed to compile native gems. The installer handles this if you leave "ridk install" checked.
+- If you need multiple Ruby versions, use **asdf** (a polyglot version manager) or **WSL** + rbenv instead.

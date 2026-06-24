@@ -1,0 +1,49 @@
+---
+slug: install-rails
+title: Install Ruby on Rails
+authors: [learner]
+tags: [ruby, rails, setup]
+---
+
+First, verify Ruby is installed correctly:
+
+```bash
+ruby --version
+# Should show something like: ruby 3.4.1
+
+gem --version
+# Should show something like: 3.6.x
+```
+
+## Install Rails
+
+Rails is a Ruby gem:
+
+```bash
+gem install rails
+```
+
+No `sudo` needed if Ruby was installed via **rbenv** (macOS/Linux) — Ruby is in `~/.rbenv/versions/`, a user directory. The [rbenv README](https://github.com/rbenv/rbenv#installing-ruby-gems) says: *"You should not use sudo to install gems."*
+
+On **Windows**, RubyInstaller installs to `C:\Program Files\`. Run PowerShell **as Administrator** before `gem install rails`.
+
+## Verify
+
+```bash
+rails --version
+# Should show: Rails 8.x.x
+```
+
+## Common Issues
+
+| Problem | Fix |
+|---|---|
+| `rails: command not found` | Restart terminal. If using rbenv, run `rbenv rehash` |
+| `Permission denied` | Run terminal as Administrator (Windows) or prefix with `sudo` (macOS/Linux system Ruby) |
+| `Gem::FilePermissionError` | Your Ruby is in a system directory. Use `gem install rails --user-install` as a workaround |
+
+## What Was Installed
+
+`gem install rails` installs Rails plus all its dependencies — Active Record, Action Pack, Action Mailer, Active Job, Action Cable, etc.
+
+Reference: [Rails Guides — Getting Started](https://guides.rubyonrails.org/getting_started.html)
