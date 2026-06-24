@@ -159,8 +159,49 @@ When you try to save an invalid record, Rails returns `false`:
 post = Post.new(title: "")  # Title is empty, validation will fail
 post.save                   # Returns false
 post.valid?                 # Returns false
-post.errors.full_messages   # Returns ["Title can't be blank"]
 ```
+
+### Inspecting Errors
+
+When a record is invalid, Rails stores error details in the `.errors` object. Here are the most common ways to inspect them:
+
+```ruby
+post = Post.new(title: "", body: nil)
+post.valid?
+
+# Are there any errors at all?
+post.errors.any?                    # => true
+
+# How many errors?
+post.errors.count                   # => 2
+
+# Full sentences — great for showing to users
+post.errors.full_messages
+# => ["Title can't be blank", "Body can't be blank"]
+
+# Errors grouped by field name
+post.errors.messages
+# => {:title => ["can't be blank"], :body => ["can't be blank"]}
+
+# Errors for one specific field
+post.errors[:title]
+# => ["can't be blank"]
+
+# The first error message for a field
+post.errors.first_for(:title)  # (Rails 7.1+)
+# or just:
+post.errors[:title].first
+# => "can't be blank"
+
+# Detailed error objects (field, message, type)
+post.errors.details
+# => {:title => [{:error => :blank}], :body => [{:error => :blank}]}
+
+# Check if a specific field has an error
+post.errors[:title].any?            # => true
+```
+
+### Using Errors in a Controller
 
 In your controller, you use this to decide what to do:
 
@@ -201,7 +242,122 @@ And in your view, Rails automatically shows errors next to fields:
 <% end %>
 ```
 
-## Putting It All Together
+## Callbacks: Code That Runs Automatically
+
+Callbacks are methods that run at certain points in a model's lifecycle — before or after saving, creating, updating, or validating. Think of them as "hooks" that let you run extra code automatically.
+
+### The Most Common Callbacks
+
+```ruby
+class Post < ApplicationRecord
+  belongs_to :user
+  has_many :comments, dependent: :destroy
+
+  validates :title, presence: true
+
+  # Runs before validations run
+  before_validation :set_default_title
+
+  # Runs before saving (both create and update)
+  before_save :sanitize_title
+
+  private
+
+  def set_default_title
+    self.title ||= "Untitled"
+  end
+
+  def sanitize_title
+    self.title = title.strip
+  end
+end
+```
+
+**Order of operations when you call `post.save`:**
+
+1. `before_validation` runs
+2. Validations run
+3. `after_validation` runs
+4. `before_save` runs
+5. SQL INSERT/UPDATE runs
+6. `after_save` runs
+
+### Callback Examples with the Blog
+
+```ruby
+class Post < ApplicationRecord
+  belongs_to :user
+  has_many :comments, dependent: :destroy
+
+  validates :title, presence: true
+  validates :body, presence: true
+
+  # Before validation: set a fallback value
+  before_validation :set_default_title
+
+  # Before save: clean up data
+  before_save :downcase_slug
+
+  # After create: log or notify (no rollback possible here)
+  after_create :log_post_created
+
+  # Before create: set a value only on first save
+  before_create :set_published_at
+
+  private
+
+  def set_default_title
+    self.title ||= "Untitled Post"
+  end
+
+  def downcase_slug
+    self.slug = slug.downcase if slug.present?
+  end
+
+  def log_post_created
+    Rails.logger.info "Post ##{id} was created"
+  end
+
+  def set_published_at
+    self.published_at = Time.current
+  end
+end
+```
+
+### Callbacks Can Abort the Save
+
+If a `before_` callback calls `throw :abort`, the save stops and Rails treats it like a failed validation:
+
+```ruby
+class Comment < ApplicationRecord
+  belongs_to :post
+
+  before_save :check_spam
+
+  private
+
+  def check_spam
+    if body.include?("buy now")
+      errors.add(:body, "looks like spam")
+      throw :abort  # Stops the save and returns false
+    end
+  end
+end
+```
+
+Now `comment.save` returns `false` and `comment.errors.full_messages` includes the spam message.
+
+### When to Use Callbacks vs Validations
+
+| Situation | Use |
+|---|---|
+| Checking if data is valid (e.g., "title must be present") | `validates` |
+| Setting a default value before checking validity | `before_validation` |
+| Cleaning or formatting data before saving | `before_save` |
+| Performing side effects after saving (e.g., send email, log) | `after_create` / `after_save` |
+| Preventing a save based on a condition | `before_save` with `throw :abort` |
+
+**Rule of thumb:** Use validations for data correctness. Use callbacks for automation (set defaults, clean input, trigger side effects).
 
 Here is a complete example of models working together:
 
