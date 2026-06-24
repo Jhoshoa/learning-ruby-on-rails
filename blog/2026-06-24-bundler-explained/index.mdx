@@ -1,0 +1,91 @@
+---
+slug: bundler-explained
+title: Bundler — gem install vs bundle install
+authors: [learner]
+tags: [ruby, setup]
+---
+
+Bundler is Ruby's dependency manager. It reads a `Gemfile` (like `package.json` in Node or `*.csproj` in .NET) and installs the exact gems and versions your project needs.
+
+## gem vs bundle
+
+| Command | What it does | When to use |
+|---|---|---|
+| `gem install rails` | Installs a gem system-wide | Testing a gem once, or installing a CLI tool |
+| `bundle install` | Installs gems from `Gemfile` into your project | Every Rails/Ruby project — this is the normal workflow |
+| `bundle add devise` | Adds a gem to `Gemfile` and runs `bundle install` | Adding a new dependency to your project |
+
+## The Gemfile
+
+When you run `rails new my_blog`, it creates a `Gemfile`:
+
+```ruby
+source "https://rubygems.org"
+
+ruby "3.4.1"
+
+gem "rails", "~> 8.0"
+gem "sqlite3"
+gem "puma"
+```
+
+- `source` — where to download gems from (RubyGems.org)
+- `ruby` — which Ruby version your project expects
+- `gem "rails", "~> 8.0"` — Rails 8.x (any patch version)
+
+## How a Rails Project Uses Bundler
+
+```bash
+# After cloning a project from GitHub
+cd my_blog
+bundle install        # Installs everything listed in Gemfile
+rails server          # Now the app runs with the correct gems
+```
+
+## Adding a New Gem
+
+```bash
+bundle add faker
+```
+
+This:
+1. Adds `gem "faker"` to your `Gemfile`
+2. Runs `bundle install` automatically
+3. Creates/updates `Gemfile.lock` — the lock file records exact versions so everyone on the team gets the same gems
+
+## Gemfile.lock
+
+`Gemfile.lock` is the most important file you never edit. It records the exact version of every gem installed. This ensures:
+
+- Your teammate gets the same versions as you
+- Production runs the same gems as development
+- You can reproduce any past state via version control
+
+**Always commit `Gemfile.lock` to git.**
+
+## Grouping Gems
+
+```ruby
+group :development, :test do
+  gem "rspec-rails"
+  gem "factory_bot_rails"
+end
+
+group :production do
+  gem "pg"  # PostgreSQL in production, SQLite in dev
+end
+```
+
+Gems in `:development` are only installed in dev mode. This keeps production lean.
+
+## Summary
+
+```
+Gemfile          — You edit this (list of gems you want)
+Gemfile.lock     — Bundler maintains this (exact versions)
+bundle install   — Read Gemfile, install everything
+bundle add       — Add a gem to Gemfile and install
+bundle update    — Update all gems to latest allowed versions
+```
+
+Reference: [bundler.io](https://bundler.io)
