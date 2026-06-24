@@ -1,0 +1,61 @@
+---
+slug: install-rbenv-macos-linux
+title: Install rbenv on macOS / Linux
+authors: [learner]
+tags: [ruby, setup]
+---
+
+rbenv is a lightweight Ruby version manager. It uses `.ruby-version` files (like `.nvmrc` for Node) to switch Ruby versions per project.
+
+## Install
+
+**macOS (Homebrew):**
+
+```bash
+brew install rbenv ruby-build
+```
+
+**Linux (git clone):**
+
+```bash
+git clone https://github.com/rbenv/rbenv.git ~/.rbenv
+git clone https://github.com/rbenv/ruby-build.git ~/.rbenv/plugins/ruby-build
+```
+
+## Shell Setup
+
+Add to `~/.bashrc`, `~/.zshrc`, or `~/.profile`:
+
+```bash
+eval "$(rbenv init -)"
+```
+
+Restart your terminal or run `source ~/.zshrc`.
+
+## Usage
+
+```bash
+# List installable versions
+rbenv install -l
+
+# Install a version
+rbenv install 3.4.1
+
+# Set global default
+rbenv global 3.4.1
+
+# Set per-project version (creates .ruby-version file)
+cd my-project
+rbenv local 3.4.1
+
+# Verify
+ruby --version
+```
+
+## Notes
+
+- `ruby-build` handles compiling Ruby from source. First installs are slow (compilation).
+- Once set, `rbenv local` writes `.ruby-version` — commit this to your repo so teammates get the same version.
+- Run `rbenv rehash` after installing gems with executables (modern rbenv does this automatically).
+
+Reference: [rbenv on GitHub](https://github.com/rbenv/rbenv)

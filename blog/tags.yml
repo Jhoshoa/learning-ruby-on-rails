@@ -12,3 +12,8 @@ learning:
   label: Learning
   permalink: /learning
   description: Learning journey posts
+
+setup:
+  label: Setup
+  permalink: /setup
+  description: Tool installation and environment setup posts
