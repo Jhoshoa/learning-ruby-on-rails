@@ -1,0 +1,302 @@
+---
+slug: rails-crud-complete
+title: Complete CRUD — Model, Validations, Controller, Views, Partials
+authors: [learner]
+tags: [rails, crud]
+---
+
+A complete step-by-step guide to create a CRUD feature in Rails. Every command and every file. No gaps.
+
+## 1. Create the Model + Migration
+
+```bash
+rails generate model Post title:string body:text published:boolean
+```
+
+This creates:
+- `app/models/post.rb`
+- `db/migrate/2024xxxx_create_posts.rb`
+
+Run the migration:
+
+```bash
+rails db:migrate
+```
+
+## 2. Add Validations
+
+```ruby
+# app/models/post.rb
+class Post < ApplicationRecord
+  validates :title, presence: true, length: { minimum: 3 }
+  validates :body, presence: true
+end
+```
+
+## 3. Add Routes
+
+```ruby
+# config/routes.rb
+Rails.application.routes.draw do
+  resources :posts
+  root "posts#index"
+end
+```
+
+Check the routes:
+
+```bash
+rails routes
+```
+
+## 4. Create the Controller
+
+```ruby
+# app/controllers/posts_controller.rb
+class PostsController < ApplicationController
+  before_action :set_post, only: [:show, :edit, :update, :destroy]
+
+  def index
+    @posts = Post.all.order(created_at: :desc)
+  end
+
+  def show
+  end
+
+  def new
+    @post = Post.new
+  end
+
+  def edit
+  end
+
+  def create
+    @post = Post.new(post_params)
+
+    if @post.save
+      redirect_to @post, notice: "Post was created."
+    else
+      render :new, status: :unprocessable_entity
+    end
+  end
+
+  def update
+    if @post.update(post_params)
+      redirect_to @post, notice: "Post was updated."
+    else
+      render :edit, status: :unprocessable_entity
+    end
+  end
+
+  def destroy
+    @post.destroy
+    redirect_to posts_path, notice: "Post was deleted."
+  end
+
+  private
+
+  def set_post
+    @post = Post.find(params[:id])
+  end
+
+  def post_params
+    params.require(:post).permit(:title, :body, :published)
+  end
+end
+```
+
+## 5. Create the Views
+
+### Index — List All Posts
+
+```html
+<!-- app/views/posts/index.html.erb -->
+<h1>Posts</h1>
+
+<%= link_to "New Post", new_post_path %>
+
+<% @posts.each do |post| %>
+  <div>
+    <h2><%= link_to post.title, post %></h2>
+    <p><%= post.body.truncate(100) %></p>
+    <small><%= time_ago_in_words(post.created_at) %> ago</small>
+    <%= link_to "Edit", edit_post_path(post) %>
+    <%= button_to "Delete", post, method: :delete, data: { confirm: "Are you sure?" } %>
+  </div>
+<% end %>
+```
+
+### Show — Single Post
+
+```html
+<!-- app/views/posts/show.html.erb -->
+<h1><%= @post.title %></h1>
+
+<p><%= @post.body %></p>
+
+<% if @post.published? %>
+  <span>Published</span>
+<% else %>
+  <span>Draft</span>
+<% end %>
+
+<br><br>
+
+<%= link_to "Edit", edit_post_path(@post) %> |
+<%= link_to "Back to Posts", posts_path %>
+```
+
+### New — Create Form
+
+```html
+<!-- app/views/posts/new.html.erb -->
+<h1>New Post</h1>
+
+<%= render "form", post: @post %>
+
+<%= link_to "Back", posts_path %>
+```
+
+### Edit — Update Form
+
+```html
+<!-- app/views/posts/edit.html.erb -->
+<h1>Edit Post</h1>
+
+<%= render "form", post: @post %>
+
+<%= link_to "Show", @post %> |
+<%= link_to "Back", posts_path %>
+```
+
+### Form Partial (Shared Between New and Edit)
+
+```html
+<!-- app/views/posts/_form.html.erb -->
+<%= form_with model: post do |form| %>
+
+  <% if post.errors.any? %>
+    <div>
+      <h2><%= pluralize(post.errors.count, "error") %> stopped this post:</h2>
+      <ul>
+        <% post.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <%= form.label :title %>
+    <%= form.text_field :title %>
+  </div>
+
+  <div>
+    <%= form.label :body %>
+    <%= form.text_area :body, rows: 5 %>
+  </div>
+
+  <div>
+    <%= form.label :published %>
+    <%= form.check_box :published %>
+  </div>
+
+  <div>
+    <%= form.submit %>
+  </div>
+
+<% end %>
+```
+
+## 6. Test It
+
+```bash
+rails server
+```
+
+Visit `http://localhost:3000` — you should see the posts index.
+
+Try:
+- Creating a post with an empty title (validation errors show)
+- Editing a post
+- Deleting a post
+- The form partial is shared between New and Edit
+
+## 7. Full File Structure
+
+```
+app/
+├── controllers/
+│   └── posts_controller.rb
+├── models/
+│   └── post.rb
+├── views/
+│   └── posts/
+│       ├── index.html.erb
+│       ├── show.html.erb
+│       ├── new.html.erb
+│       ├── edit.html.erb
+│       └── _form.html.erb
+└── config/
+    └── routes.rb
+```
+
+## 8. API Mode (JSON Only)
+
+If you want an API instead of HTML views, use:
+
+```bash
+rails new my_api --api
+```
+
+The controller changes to return JSON:
+
+```ruby
+class PostsController < ApplicationController
+  before_action :set_post, only: [:show, :update, :destroy]
+
+  def index
+    @posts = Post.all.order(created_at: :desc)
+    render json: @posts
+  end
+
+  def show
+    render json: @post
+  end
+
+  def create
+    @post = Post.new(post_params)
+
+    if @post.save
+      render json: @post, status: :created
+    else
+      render json: @post.errors, status: :unprocessable_entity
+    end
+  end
+
+  def update
+    if @post.update(post_params)
+      render json: @post
+    else
+      render json: @post.errors, status: :unprocessable_entity
+    end
+  end
+
+  def destroy
+    @post.destroy
+    head :no_content
+  end
+
+  private
+
+  def set_post
+    @post = Post.find(params[:id])
+  end
+
+  def post_params
+    params.require(:post).permit(:title, :body, :published)
+  end
+end
+```
+
+No view files needed — the API controller renders JSON directly.
