@@ -14,8 +14,14 @@ Reference: [rubyinstaller.org](https://rubyinstaller.org/)
 1. Go to [rubyinstaller.org/downloads](https://rubyinstaller.org/downloads/)
 2. Download **Ruby+Devkit x64** (the latest stable version)
 3. Run the .exe — click through the installer
-4. On the final screen, make sure "Run 'ridk install'" is checked
-5. In the terminal that opens, press **Enter** to accept the default MSYS2 installation
+4. On the final screen, make sure **"Run 'ridk install'"** is checked
+5. In the terminal that opens, you will see:
+
+```
+Which components shall be installed? If unsure press ENTER [1,3]
+```
+
+Type `1,3` and press **Enter** (or just press Enter to accept the default `[1,3]`).
 
 ## Verify
 
@@ -29,8 +35,19 @@ gem --version
 # Should show: 3.6.x
 ```
 
+## MSYS2 Options Explained
+
+| Option | What it is | Needed? |
+|---|---|---|
+| **1** — MSYS2 base installation | The core Unix-like environment for Windows | **Yes** — required to compile native gems |
+| **2** — MSYS2 system update | Updates MSYS2 packages to latest versions | Optional — do it once if you have time (slow download) |
+| **3** — MINGW development toolchain | GCC compiler and build tools (make, g++, etc.) | **Yes** — required to compile gems with C extensions |
+
+**Recommended:** `1,3` (or just press Enter to accept the default).
+
+Some gems (like `json`, `nokogiri`, `bcrypt`) include C extensions that need to be compiled on your machine. MSYS2 provides the compiler. Without it, `gem install` will fail for those gems.
+
 ## Notes
 
-- RubyInstaller installs to `C:\Program Files\` — you will need to run PowerShell **as Administrator** when running `gem install rails`.
-- The DevKit (MSYS2) is needed to compile native gems. The installer handles this if you leave "ridk install" checked.
-- If you need multiple Ruby versions, use **asdf** (a polyglot version manager) or **WSL** + rbenv instead.
+- RubyInstaller installs to `C:\Program Files\` — run PowerShell **as Administrator** before `gem install rails`.
+- If you need multiple Ruby versions, use **asdf** or **WSL** + rbenv instead.
