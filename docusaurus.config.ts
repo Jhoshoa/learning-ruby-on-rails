@@ -57,6 +57,7 @@ const config: Config = {
         },
         blog: {
           showReadingTime: true,
+          sortPosts: 'ascending',
           feedOptions: {
             type: ['rss', 'atom'],
             xslt: true,
@@ -64,6 +65,14 @@ const config: Config = {
           onInlineTags: 'warn',
           onInlineAuthors: 'warn',
           onUntruncatedBlogPosts: 'warn',
+          processBlogPosts: async ({blogPosts}) =>
+            blogPosts
+              .filter((post) => post.metadata.frontMatter.blog_order !== undefined)
+              .sort((a, b) => {
+                const orderA = Number(a.metadata.frontMatter.blog_order);
+                const orderB = Number(b.metadata.frontMatter.blog_order);
+                return orderA - orderB;
+              }),
         },
         theme: {
           customCss: './src/css/custom.css',

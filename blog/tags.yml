@@ -17,3 +17,8 @@ setup:
   label: Setup
   permalink: /setup
   description: Tool installation and environment setup posts
+
+crud:
+  label: CRUD
+  permalink: /crud
+  description: Create, Read, Update, Delete operations in Rails
